@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>くるらトラッカー - 遠山郷線バス到着予測</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>🚌 くるらトラッカー</h1>
+    <p class="subtitle">遠山郷線（E1）バス到着予測</p>
+  </header>
+
+  <main>
+    <!-- ステータスバー -->
+    <div id="status-bar" class="status-bar">
+      <span id="status-icon" class="status-icon">⏳</span>
+      <span id="status-text">データ取得中...</span>
+      <span id="last-updated" class="last-updated"></span>
+    </div>
+
+    <!-- 到着予測パネル -->
+    <div id="estimate-panel" class="estimate-panel">
+      <div class="panel-header">
+        <h2>到着予測</h2>
+        <button id="btn-my-location" class="btn btn-location">📍 現在地から検索</button>
+      </div>
+
+      <div class="stop-selector">
+        <label for="stop-select">バス停を選択:</label>
+        <select id="stop-select">
+          <option value="">-- バス停を選んでください --</option>
+        </select>
+        <button id="btn-estimate" class="btn btn-primary">到着時間を調べる</button>
+      </div>
+
+      <div id="estimate-result" class="estimate-result hidden">
+        <!-- 結果がここに表示される -->
+      </div>
+    </div>
+
+    <!-- 地図 -->
+    <div id="map"></div>
+
+    <!-- バス情報 -->
+    <div id="bus-info" class="bus-info hidden">
+      <h3>運行中のバス</h3>
+      <div id="bus-list"></div>
+    </div>
+  </main>
+
+  <footer>
+    <p>データ元: <a href="https://bus-kurura.jp/" target="_blank">くるら（飯田市バスロケーションシステム）</a></p>
+    <p class="note">※ 到着時間は直線距離と平均速度に基づく推定値です</p>
+  </footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+[build]
+  publish = "public"
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+
+# API リダイレクト（フロントエンドの /api/* をNetlify Functionsに転送）
+[[redirects]]
+  from = "/api/stops"
+  to = "/.netlify/functions/stops"
+  status = 200
+
+[[redirects]]
+  from = "/api/bus-location"
+  to = "/.netlify/functions/bus-location"
+  status = 200
+
+[[redirects]]
+  from = "/api/estimate"
+  to = "/.netlify/functions/estimate"
+  status = 200
+
+[[redirects]]
+  from = "/api/config"
+  to = "/.netlify/functions/config"
+  status = 200

@@ -1,0 +1,4 @@
+{
+  "google_maps_api_key": "",
+  "comment": "Google Maps APIキーを設定すると渋滞情報を反映した到着予測になります。空欄の場合はOSRM（無料）を使用します。"
+}

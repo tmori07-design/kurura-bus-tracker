@@ -1,0 +1,351 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+  background: #f0f4f8;
+  color: #333;
+  min-height: 100vh;
+}
+
+header {
+  background: linear-gradient(135deg, #e84393, #fd79a8);
+  color: white;
+  padding: 16px 20px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+header h1 {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+header .subtitle {
+  font-size: 13px;
+  opacity: 0.9;
+  margin-top: 4px;
+}
+
+main {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 12px;
+}
+
+/* ステータスバー */
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: white;
+  border-radius: 10px;
+  padding: 10px 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  font-size: 14px;
+}
+
+.status-bar.running {
+  border-left: 4px solid #00b894;
+}
+
+.status-bar.stopped {
+  border-left: 4px solid #fdcb6e;
+}
+
+.status-icon {
+  font-size: 18px;
+}
+
+.last-updated {
+  margin-left: auto;
+  font-size: 11px;
+  color: #999;
+}
+
+/* 到着予測パネル */
+.estimate-panel {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.panel-header h2 {
+  font-size: 16px;
+  color: #2d3436;
+}
+
+.stop-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.stop-selector label {
+  font-size: 13px;
+  color: #636e72;
+  width: 100%;
+}
+
+.stop-selector select {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 2px solid #dfe6e9;
+  border-radius: 8px;
+  font-size: 14px;
+  background: white;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23636e72' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+
+.stop-selector select:focus {
+  outline: none;
+  border-color: #e84393;
+}
+
+/* ボタン */
+.btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #e84393, #fd79a8);
+  color: white;
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(232, 67, 147, 0.4);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-location {
+  background: #0984e3;
+  color: white;
+  font-size: 12px;
+  padding: 8px 12px;
+}
+
+.btn-location:hover {
+  background: #0873c7;
+}
+
+/* 到着結果 */
+.estimate-result {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 10px;
+  background: #ffeef5;
+  border: 1px solid #fdccd8;
+}
+
+.estimate-result.hidden {
+  display: none;
+}
+
+.estimate-target {
+  font-size: 14px;
+  color: #636e72;
+  margin-bottom: 8px;
+}
+
+.estimate-time {
+  font-size: 36px;
+  font-weight: 800;
+  color: #e84393;
+  line-height: 1.2;
+}
+
+.estimate-time .unit {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.estimate-meta {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.meta-item {
+  font-size: 13px;
+  color: #636e72;
+}
+
+.estimate-source {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #999;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.badge-traffic {
+  background: #00b894;
+  color: white;
+}
+
+.estimate-detail {
+  font-size: 12px;
+  color: #999;
+  margin-top: 6px;
+}
+
+.estimate-no-bus {
+  text-align: center;
+  padding: 20px;
+  color: #636e72;
+}
+
+.estimate-no-bus .icon {
+  font-size: 40px;
+  margin-bottom: 8px;
+}
+
+.estimate-no-bus .message {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.estimate-no-bus .sub {
+  font-size: 12px;
+  color: #999;
+  margin-top: 4px;
+}
+
+/* 地図 */
+#map {
+  width: 100%;
+  height: 350px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  margin-bottom: 12px;
+}
+
+/* バス情報 */
+.bus-info {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  margin-bottom: 12px;
+}
+
+.bus-info.hidden {
+  display: none;
+}
+
+.bus-info h3 {
+  font-size: 15px;
+  margin-bottom: 10px;
+  color: #2d3436;
+}
+
+.bus-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.bus-card:last-child {
+  margin-bottom: 0;
+}
+
+.bus-card .bus-icon {
+  font-size: 28px;
+}
+
+.bus-card .bus-detail {
+  flex: 1;
+}
+
+.bus-card .bus-route {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.bus-card .bus-pos {
+  font-size: 11px;
+  color: #999;
+}
+
+/* フッター */
+footer {
+  text-align: center;
+  padding: 16px;
+  font-size: 11px;
+  color: #999;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+footer a {
+  color: #e84393;
+}
+
+footer .note {
+  margin-top: 4px;
+  font-size: 10px;
+}
+
+/* アニメーション */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.loading {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* レスポンシブ */
+@media (max-width: 480px) {
+  header h1 { font-size: 18px; }
+  main { padding: 8px; }
+  #map { height: 280px; }
+  .estimate-time { font-size: 28px; }
+  .panel-header { flex-direction: column; gap: 8px; align-items: flex-start; }
+}
