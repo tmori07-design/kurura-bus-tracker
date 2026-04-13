@@ -86,9 +86,11 @@ async function routeViaOSRM(busLat, busLng, destLat, destLng, waypoints) {
   let duration = data.routes[0].duration;
   const distance = data.routes[0].distance;
 
-  // バス停の停車時間を加算（1停留所30秒）
+  // バス停ごとの停車時間を加算
   if (waypoints) {
-    duration += Math.max(0, waypoints.length - 2) * 30;
+    for (const wp of waypoints) {
+      duration += wp.dwellTime || 0;
+    }
   }
 
   return {
@@ -112,7 +114,11 @@ function fallbackEstimate(busLat, busLng, destLat, destLng, waypoints, numStops)
     dist += haversineDistance(points[i][0], points[i][1], points[i + 1][0], points[i + 1][1]);
   }
   const roadDist = dist * 1.3;
-  const minutes = Math.round((roadDist / 25) * 60) + Math.round(numStops * 0.5);
+  let dwellTotal = 0;
+  if (waypoints) {
+    for (const wp of waypoints) dwellTotal += wp.dwellTime || 0;
+  }
+  const minutes = Math.round((roadDist / 25) * 60) + Math.round(dwellTotal / 60);
 
   return {
     duration_minutes: minutes,

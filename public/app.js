@@ -7,6 +7,7 @@ let userMarker = null;
 let selectedStopMarker = null;
 let stops = [];
 let refreshInterval = null;
+let currentDirection = 'to-wada'; // 現在の方向選択
 
 // バスアイコン
 const busIcon = L.divIcon({
@@ -54,6 +55,44 @@ async function init() {
   // イベントリスナー
   document.getElementById('btn-estimate').addEventListener('click', getEstimate);
   document.getElementById('btn-my-location').addEventListener('click', useMyLocation);
+  document.getElementById('direction-select').addEventListener('change', (e) => {
+    currentDirection = e.target.value;
+    updateStopDropdown();
+    updateBusData();
+  });
+
+  // 方向に応じたバス停リスト初期化
+  updateStopDropdown();
+}
+
+// 方向に応じたバス停ドロップダウン更新
+function updateStopDropdown() {
+  const select = document.getElementById('stop-select');
+  select.innerHTML = '<option value="">-- バス停を選んでください --</option>';
+
+  // 和田→飯田方面のみの停留所（order 69-71）
+  const iidaOnlyStops = ['知久町１丁目', '知久町３丁目', '飯田病院前'];
+  // 飯田→和田方面のみの停留所
+  const wadaOnlyStops = ['飯田市役所'];
+
+  let filteredStops;
+  if (currentDirection === 'to-wada') {
+    // 飯田→和田: order 0-68 のうち、復路専用を除く
+    filteredStops = stops.filter(s => s.order <= 68 && !iidaOnlyStops.includes(s.name));
+  } else {
+    // 和田→飯田: order 68→0 + 復路専用停留所、往路専用を除く
+    filteredStops = stops.filter(s => !wadaOnlyStops.includes(s.name));
+    // 逆順にする（和田→飯田方面）
+    filteredStops = [...filteredStops].sort((a, b) => b.order - a.order);
+  }
+
+  filteredStops.forEach((stop) => {
+    const option = document.createElement('option');
+    // stopsの元のインデックスを値として使う
+    option.value = stops.indexOf(stop);
+    option.textContent = stop.name;
+    select.appendChild(option);
+  });
 }
 
 // バス停データ読み込み
@@ -61,14 +100,6 @@ async function loadStops() {
   try {
     const res = await fetch('/api/stops');
     stops = await res.json();
-
-    const select = document.getElementById('stop-select');
-    stops.forEach((stop, i) => {
-      const option = document.createElement('option');
-      option.value = i;
-      option.textContent = stop.name;
-      select.appendChild(option);
-    });
 
     // マップにバス停マーカーを追加
     stops.forEach((stop, i) => {
@@ -122,11 +153,15 @@ async function updateBusData() {
       busInfo.classList.remove('hidden');
       busList.innerHTML = '';
 
-      data.buses.forEach(bus => {
+      data.buses.forEach((bus, idx) => {
+        // 方向ラベル
+        const nearStop = bus.nearestStop || '不明';
+        const dirLabel = idx === 0 ? '1号車' : '2号車';
+
         // マーカー追加
         const marker = L.marker([bus.lat, bus.lng], { icon: busIcon })
           .addTo(map)
-          .bindPopup(`<b>遠山郷線 (${bus.route})</b><br>更新: ${new Date(bus.timestamp).toLocaleTimeString('ja-JP')}`);
+          .bindPopup(`<b>遠山郷線 ${dirLabel}</b><br>最寄り: ${nearStop}<br>更新: ${new Date(bus.timestamp).toLocaleTimeString('ja-JP')}`);
         busMarkers.push(marker);
 
         // バスカード追加
@@ -135,8 +170,8 @@ async function updateBusData() {
         card.innerHTML = `
           <span class="bus-icon">🚌</span>
           <div class="bus-detail">
-            <div class="bus-route">遠山郷線 (${bus.route})</div>
-            <div class="bus-pos">位置: ${bus.lat.toFixed(4)}, ${bus.lng.toFixed(4)}</div>
+            <div class="bus-route">遠山郷線 ${dirLabel}</div>
+            <div class="bus-pos">最寄り: ${nearStop}</div>
           </div>
         `;
         card.addEventListener('click', () => {
