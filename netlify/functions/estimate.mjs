@@ -41,11 +41,14 @@ async function routeViaGoogleMaps(busLat, busLng, destLat, destLng, waypoints) {
   // 渋滞考慮の所要時間があればそちらを使用
   const effectiveDuration = trafficDuration > 0 ? trafficDuration : duration;
 
-  // バス停の停車時間を加算（1停留所30秒）
+  // バス停ごとの停車時間を加算
+  let dwellTotal = 0;
   if (waypoints) {
-    effectiveDuration + Math.max(0, waypoints.length - 2) * 30;
+    for (const wp of waypoints) {
+      dwellTotal += wp.dwellTime || 0;
+    }
   }
-  const totalDuration = effectiveDuration + (waypoints ? Math.max(0, waypoints.length - 2) * 30 : 0);
+  const totalDuration = effectiveDuration + dwellTotal;
 
   return {
     duration_minutes: Math.round(totalDuration / 60),
