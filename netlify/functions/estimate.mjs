@@ -2,6 +2,59 @@ import {
   BUS_STOPS, haversineDistance, findNearestStopIndex, jsonResponse,
 } from './shared.mjs';
 
+// Google Maps Directions API で渋滞考慮ルーティング
+async function routeViaGoogleMaps(busLat, busLng, destLat, destLng, waypoints) {
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  if (!apiKey) return null;
+
+  let url = `https://maps.googleapis.com/maps/api/directions/json?origin=${busLat},${busLng}&destination=${destLat},${destLng}&departure_time=now&traffic_model=best_guess&key=${apiKey}`;
+
+  // 中間バス停をwaypointsとして追加
+  if (waypoints && waypoints.length > 2) {
+    let mid = waypoints.slice(1, -1);
+    if (mid.length > 23) {
+      const step = mid.length / 23;
+      mid = Array.from({ length: 23 }, (_, i) => mid[Math.floor(i * step)]);
+    }
+    const wp = mid.map(s => `${s.lat},${s.lng}`).join('|');
+    url += `&waypoints=${encodeURIComponent(wp)}`;
+  }
+
+  const res = await fetch(url);
+  const data = await res.json();
+
+  if (data.status !== 'OK' || !data.routes?.length) return null;
+
+  const route = data.routes[0];
+  let duration = 0;
+  let distance = 0;
+  let trafficDuration = 0;
+
+  for (const leg of route.legs) {
+    duration += leg.duration.value;
+    distance += leg.distance.value;
+    if (leg.duration_in_traffic) {
+      trafficDuration += leg.duration_in_traffic.value;
+    }
+  }
+
+  // 渋滞考慮の所要時間があればそちらを使用
+  const effectiveDuration = trafficDuration > 0 ? trafficDuration : duration;
+
+  // バス停の停車時間を加算（1停留所30秒）
+  if (waypoints) {
+    effectiveDuration + Math.max(0, waypoints.length - 2) * 30;
+  }
+  const totalDuration = effectiveDuration + (waypoints ? Math.max(0, waypoints.length - 2) * 30 : 0);
+
+  return {
+    duration_minutes: Math.round(totalDuration / 60),
+    distance_km: Math.round(distance / 1000 * 10) / 10,
+    source: 'google',
+    traffic_aware: trafficDuration > 0,
+  };
+}
+
 // OSRM で道路ルーティング
 async function routeViaOSRM(busLat, busLng, destLat, destLng, waypoints) {
   const coords = [`${busLng},${busLat}`];
@@ -153,12 +206,19 @@ export const handler = async (event) => {
     }
 
     let routing;
+    // Google Maps（渋滞対応）→ OSRM → フォールバック
     try {
-      routing = await routeViaOSRM(bus.lat, bus.lng, targetLat, targetLng, waypoints);
+      routing = await routeViaGoogleMaps(bus.lat, bus.lng, targetLat, targetLng, waypoints);
     } catch (e) {
       routing = null;
     }
-
+    if (!routing) {
+      try {
+        routing = await routeViaOSRM(bus.lat, bus.lng, targetLat, targetLng, waypoints);
+      } catch (e) {
+        routing = null;
+      }
+    }
     if (!routing) {
       routing = fallbackEstimate(bus.lat, bus.lng, targetLat, targetLng, waypoints, numStops);
     }
