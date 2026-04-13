@@ -10,19 +10,15 @@ let refreshInterval = null;
 let currentDirection = 'to-wada'; // 現在の方向選択
 let routeLine = null; // ルートライン
 
-// 7:00飯田駅前発で通過（↓）する停留所
+// 7:00飯田駅前発で通過（↓）する停留所（データに残っているもののみ）
 const skippedToWada = [
-  '中央通り３丁目', '城下', '下山東', '鼎駅前', '鼎公民館前',
-  '下農入口', 'OIDE長姫高校前', '常盤台', '常盤台東', '市立病院', '永代橋南',
   '地域交流センター', '郵便局前', 'かぐらの湯'
 ];
 
-// 16:24かぐらの湯発で通過（↓）する停留所
+// 16:24かぐらの湯発で通過（↓）する停留所（データに残っているもののみ）
 const skippedToIida = [
   '丸五商店前', '上新町', '中学校前', '押出', '酒屋前',
-  '大島', '観音前', '日影沢', '畑上', '小道木',
-  '永代橋南', '市立病院', '常盤台東', '常盤台', 'OIDE長姫高校前',
-  '下農入口', '鼎公民館前', '鼎駅前', '下山東', '城下'
+  '大島', '観音前', '日影沢', '畑上', '小道木'
 ];
 
 // バスアイコン
@@ -98,7 +94,7 @@ function updateStopDropdown() {
       .sort((a, b) => a.order - b.order);
   } else {
     // 和田→飯田（16:24かぐらの湯発）: 往路専用と通過停留所を除く
-    const wadaOnlyNames = ['中央通り３丁目', '飯田市役所'];
+    const wadaOnlyNames = ['飯田市役所'];
     const commonStops = stops
       .filter(s => s.order <= 68
         && !wadaOnlyNames.includes(s.name)

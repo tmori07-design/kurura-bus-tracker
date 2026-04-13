@@ -6,23 +6,10 @@
 export const BUS_STOPS = [
   // --- 飯田市中心部 ---
   { name: "飯田駅前", lat: 35.51904, lng: 137.82081, order: 0, dwellTime: 0 },
-  { name: "中央通り３丁目", lat: 35.51750, lng: 137.82422, order: 1, dwellTime: 0 },
   { name: "飯田市役所", lat: 35.51516, lng: 137.82223, order: 2, dwellTime: 0 },
   { name: "中央広場", lat: 35.51539, lng: 137.82812, order: 3, dwellTime: 0 },
   { name: "東中央通り", lat: 35.51231, lng: 137.83434, order: 4, dwellTime: 0 },
   { name: "飯田橋", lat: 35.50848, lng: 137.83848, order: 5, dwellTime: 0 },
-  { name: "城下", lat: 35.50971, lng: 137.83500, order: 6, dwellTime: 0 },
-  // --- 鼎エリア ---
-  { name: "下山東", lat: 35.50718, lng: 137.83403, order: 7, dwellTime: 0 },
-  { name: "鼎駅前", lat: 35.50683, lng: 137.82810, order: 8, dwellTime: 0 },
-  { name: "鼎公民館前", lat: 35.50531, lng: 137.82651, order: 9, dwellTime: 0 },
-  { name: "下農入口", lat: 35.50222, lng: 137.82791, order: 10, dwellTime: 0 },
-  { name: "OIDE長姫高校前", lat: 35.50247, lng: 137.83172, order: 11, dwellTime: 0 },
-  // --- 市立病院エリア ---
-  { name: "常盤台", lat: 35.50195, lng: 137.83737, order: 12, dwellTime: 0 },
-  { name: "常盤台東", lat: 35.50089, lng: 137.83862, order: 13, dwellTime: 0 },
-  { name: "市立病院", lat: 35.49954, lng: 137.83515, order: 14, dwellTime: 0 },
-  { name: "永代橋南", lat: 35.50548, lng: 137.84393, order: 15, dwellTime: 0 },
   // --- 喬木エリア ---
   { name: "寺所入口", lat: 35.50522, lng: 137.85055, order: 16, dwellTime: 0 },
   { name: "新井", lat: 35.50336, lng: 137.85876, order: 17, dwellTime: 30 },
