@@ -32,7 +32,7 @@ export const BUS_STOPS = [
   { name: "富田辻", lat: 35.48516, lng: 137.88603, order: 21, dwellTime: 0 },
   { name: "第二小学校入口", lat: 35.48415, lng: 137.88907, order: 22, dwellTime: 0 },
   { name: "馬草田", lat: 35.48509, lng: 137.89389, order: 23, dwellTime: 0 },
-  { name: "一本木", lat: 35.44943, lng: 137.82653, order: 24, dwellTime: 0 },
+  { name: "一本木", lat: 35.48420, lng: 137.89680, order: 24, dwellTime: 0 },
   { name: "大和知", lat: 35.48340, lng: 137.89968, order: 25, dwellTime: 0 },
   { name: "久保の下", lat: 35.48555, lng: 137.90060, order: 26, dwellTime: 0 },
   { name: "氏乗", lat: 35.48288, lng: 137.90785, order: 27, dwellTime: 0 },
@@ -41,7 +41,7 @@ export const BUS_STOPS = [
   { name: "小沢橋", lat: 35.44018, lng: 137.99171, order: 29, dwellTime: 0 },
   { name: "程野", lat: 35.43849, lng: 137.99107, order: 30, dwellTime: 0 },
   { name: "柄沢前", lat: 35.43564, lng: 137.98963, order: 31, dwellTime: 0 },
-  { name: "宮の前", lat: 35.43183, lng: 137.98791, order: 32, dwellTime: 0 },
+  { name: "宮の前", lat: 35.43370, lng: 137.98880, order: 32, dwellTime: 0 },
   { name: "東前", lat: 35.42463, lng: 137.98349, order: 33, dwellTime: 0 },
   { name: "うとどち", lat: 35.42070, lng: 137.98064, order: 34, dwellTime: 0 },
   { name: "行者", lat: 35.41258, lng: 137.97602, order: 35, dwellTime: 0 },
@@ -80,6 +80,10 @@ export const BUS_STOPS = [
   { name: "地域交流センター", lat: 35.32283, lng: 137.93200, order: 66, dwellTime: 0 },
   { name: "郵便局前", lat: 35.32109, lng: 137.92969, order: 67, dwellTime: 0 },
   { name: "かぐらの湯", lat: 35.32109, lng: 137.92969, order: 68, dwellTime: 0 },
+  // --- 和田→飯田方面のみの停留所 ---
+  { name: "知久町１丁目", lat: 35.51414, lng: 137.82529, order: 69, dwellTime: 30 },
+  { name: "知久町３丁目", lat: 35.51543, lng: 137.82274, order: 70, dwellTime: 30 },
+  { name: "飯田病院前", lat: 35.51738, lng: 137.81917, order: 71, dwellTime: 0 },
 ];
 
 export function haversineDistance(lat1, lng1, lat2, lng2) {
