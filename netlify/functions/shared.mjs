@@ -29,7 +29,7 @@ export const BUS_STOPS = [
   { name: "弁天", lat: 35.48700, lng: 137.86200, order: 18, dwellTime: 0 },
   { name: "北原", lat: 35.48400, lng: 137.87000, order: 19, dwellTime: 0 },
   { name: "楽珍館前", lat: 35.48100, lng: 137.87800, order: 20, dwellTime: 30 },
-  { name: "富田辻", lat: 35.47894, lng: 137.92479, order: 21, dwellTime: 0 },
+  { name: "富田辻", lat: 35.47950, lng: 137.88500, order: 21, dwellTime: 0 },
   { name: "第二小学校入口", lat: 35.47850, lng: 137.89200, order: 22, dwellTime: 0 },
   { name: "馬草田", lat: 35.47800, lng: 137.89500, order: 23, dwellTime: 0 },
   { name: "一本木", lat: 35.47850, lng: 137.89800, order: 24, dwellTime: 0 },
