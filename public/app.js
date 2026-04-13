@@ -8,6 +8,22 @@ let selectedStopMarker = null;
 let stops = [];
 let refreshInterval = null;
 let currentDirection = 'to-wada'; // 現在の方向選択
+let routeLine = null; // ルートライン
+
+// 7:00飯田駅前発で通過（↓）する停留所
+const skippedToWada = [
+  '中央通り３丁目', '城下', '下山東', '鼎駅前', '鼎公民館前',
+  '下農入口', 'OIDE長姫高校前', '常盤台', '常盤台東', '市立病院', '永代橋南',
+  '地域交流センター', '郵便局前', 'かぐらの湯'
+];
+
+// 16:24かぐらの湯発で通過（↓）する停留所
+const skippedToIida = [
+  '丸五商店前', '上新町', '中学校前', '押出', '酒屋前',
+  '大島', '観音前', '日影沢', '畑上', '小道木',
+  '永代橋南', '市立病院', '常盤台東', '常盤台', 'OIDE長姫高校前',
+  '下農入口', '鼎公民館前', '鼎駅前', '下山東', '城下'
+];
 
 // バスアイコン
 const busIcon = L.divIcon({
@@ -70,30 +86,30 @@ function updateStopDropdown() {
   const select = document.getElementById('stop-select');
   select.innerHTML = '<option value="">-- バス停を選んでください --</option>';
 
-  // 飯田→和田方面のみ（復路にはない）
-  const wadaOnlyNames = ['中央通り３丁目', '飯田市役所'];
-  // 和田→飯田方面のみ（往路にはない）
   const iidaOnlyNames = ['知久町１丁目', '知久町３丁目', '飯田病院前'];
 
   let orderedStops;
   if (currentDirection === 'to-wada') {
-    // 飯田→和田: order 0-68を昇順、復路専用を除く
+    // 飯田→和田（7:00飯田駅前発）: 復路専用と通過停留所を除く
     orderedStops = stops
-      .filter(s => s.order <= 68 && !iidaOnlyNames.includes(s.name))
+      .filter(s => s.order <= 68
+        && !iidaOnlyNames.includes(s.name)
+        && !skippedToWada.includes(s.name))
       .sort((a, b) => a.order - b.order);
   } else {
-    // 和田→飯田: order 68→0を降順、往路専用を除く
-    // まず共通停留所（order 0-68）を降順
+    // 和田→飯田（16:24かぐらの湯発）: 往路専用と通過停留所を除く
+    const wadaOnlyNames = ['中央通り３丁目', '飯田市役所'];
     const commonStops = stops
-      .filter(s => s.order <= 68 && !wadaOnlyNames.includes(s.name))
+      .filter(s => s.order <= 68
+        && !wadaOnlyNames.includes(s.name)
+        && !skippedToIida.includes(s.name))
       .sort((a, b) => b.order - a.order);
 
-    // 中央広場の位置を見つけて、その後に知久町・飯田病院前を挿入
+    // 中央広場の後に復路専用停留所（知久町・飯田病院前）を挿入
     orderedStops = [];
     for (const s of commonStops) {
       orderedStops.push(s);
       if (s.name === '中央広場') {
-        // 中央広場の後に復路専用停留所を挿入
         for (const name of iidaOnlyNames) {
           const iidaStop = stops.find(st => st.name === name);
           if (iidaStop) orderedStops.push(iidaStop);
@@ -108,6 +124,23 @@ function updateStopDropdown() {
     option.textContent = stop.name;
     select.appendChild(option);
   });
+
+  // ルートラインを選択便の停車停留所のみに更新
+  updateRouteLine(orderedStops);
+}
+
+// ルートライン更新（選択便の停車停留所のみ）
+function updateRouteLine(orderedStops) {
+  if (routeLine) map.removeLayer(routeLine);
+  if (orderedStops.length > 1) {
+    const routeCoords = orderedStops.map(s => [s.lat, s.lng]);
+    routeLine = L.polyline(routeCoords, {
+      color: '#e84393',
+      weight: 3,
+      opacity: 0.5,
+      dashArray: '8, 8'
+    }).addTo(map);
+  }
 }
 
 // バス停データ読み込み
@@ -124,17 +157,9 @@ async function loadStops() {
       stopMarkers.push(marker);
     });
 
-    // ルートラインを描画
+    // マップを路線全体にフィット
     if (stops.length > 1) {
       const routeCoords = stops.map(s => [s.lat, s.lng]);
-      L.polyline(routeCoords, {
-        color: '#e84393',
-        weight: 3,
-        opacity: 0.5,
-        dashArray: '8, 8'
-      }).addTo(map);
-
-      // マップを路線全体にフィット
       map.fitBounds(L.latLngBounds(routeCoords).pad(0.1));
     }
   } catch (error) {
