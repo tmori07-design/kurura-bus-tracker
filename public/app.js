@@ -70,25 +70,40 @@ function updateStopDropdown() {
   const select = document.getElementById('stop-select');
   select.innerHTML = '<option value="">-- バス停を選んでください --</option>';
 
-  // 和田→飯田方面のみの停留所（order 69-71）
-  const iidaOnlyStops = ['知久町１丁目', '知久町３丁目', '飯田病院前'];
-  // 飯田→和田方面のみの停留所
-  const wadaOnlyStops = ['飯田市役所'];
+  // 飯田→和田方面のみ（復路にはない）
+  const wadaOnlyNames = ['中央通り３丁目', '飯田市役所'];
+  // 和田→飯田方面のみ（往路にはない）
+  const iidaOnlyNames = ['知久町１丁目', '知久町３丁目', '飯田病院前'];
 
-  let filteredStops;
+  let orderedStops;
   if (currentDirection === 'to-wada') {
-    // 飯田→和田: order 0-68 のうち、復路専用を除く
-    filteredStops = stops.filter(s => s.order <= 68 && !iidaOnlyStops.includes(s.name));
+    // 飯田→和田: order 0-68を昇順、復路専用を除く
+    orderedStops = stops
+      .filter(s => s.order <= 68 && !iidaOnlyNames.includes(s.name))
+      .sort((a, b) => a.order - b.order);
   } else {
-    // 和田→飯田: order 68→0 + 復路専用停留所、往路専用を除く
-    filteredStops = stops.filter(s => !wadaOnlyStops.includes(s.name));
-    // 逆順にする（和田→飯田方面）
-    filteredStops = [...filteredStops].sort((a, b) => b.order - a.order);
+    // 和田→飯田: order 68→0を降順、往路専用を除く
+    // まず共通停留所（order 0-68）を降順
+    const commonStops = stops
+      .filter(s => s.order <= 68 && !wadaOnlyNames.includes(s.name))
+      .sort((a, b) => b.order - a.order);
+
+    // 中央広場の位置を見つけて、その後に知久町・飯田病院前を挿入
+    orderedStops = [];
+    for (const s of commonStops) {
+      orderedStops.push(s);
+      if (s.name === '中央広場') {
+        // 中央広場の後に復路専用停留所を挿入
+        for (const name of iidaOnlyNames) {
+          const iidaStop = stops.find(st => st.name === name);
+          if (iidaStop) orderedStops.push(iidaStop);
+        }
+      }
+    }
   }
 
-  filteredStops.forEach((stop) => {
+  orderedStops.forEach((stop) => {
     const option = document.createElement('option');
-    // stopsの元のインデックスを値として使う
     option.value = stops.indexOf(stop);
     option.textContent = stop.name;
     select.appendChild(option);
