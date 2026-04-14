@@ -379,32 +379,23 @@ function renderEstimate(data) {
 
   const nearest = data.estimates[0];
 
-  // ルーティングソースの表示
-  const sourceLabel = {
-    'google_maps': '🗺 Google Maps（渋滞考慮）',
-    'osrm': '🛣 道路距離ベース',
-    'fallback': '📏 概算'
-  }[nearest.source] || '📏 概算';
-
-  const trafficBadge = nearest.trafficAware
-    ? '<span class="badge badge-traffic">渋滞反映</span>'
-    : '';
-
   const stopsInfo = nearest.numStops > 0
     ? `${nearest.numStops}停留所先`
     : '付近';
 
+  // 到着時刻（現在時刻 + 予測分数）
+  const arrival = new Date(Date.now() + nearest.estimatedMinutes * 60 * 1000);
+  const hh = arrival.getHours();
+  const mm = String(arrival.getMinutes()).padStart(2, '0');
+
   resultDiv.innerHTML = `
     <div class="estimate-target">📍 ${data.target} への到着予測</div>
     <div class="estimate-time">
-      あと約 ${nearest.estimatedMinutes} <span class="unit">分</span>
+      約 ${hh}:${mm} <span class="unit">着</span>
     </div>
     <div class="estimate-meta">
       <span class="meta-item">🚏 ${stopsInfo}</span>
       <span class="meta-item">📐 道路距離 約${nearest.distanceKm}km</span>
-    </div>
-    <div class="estimate-source">
-      ${sourceLabel} ${trafficBadge}
     </div>
     <div class="estimate-detail">
       更新: ${new Date(nearest.timestamp).toLocaleTimeString('ja-JP')}
