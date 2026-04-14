@@ -190,9 +190,12 @@ async function updateBusData() {
       busList.innerHTML = '';
 
       data.buses.forEach((bus, idx) => {
-        // 方向ラベル
         const nearStop = bus.nearestStop || '不明';
-        const dirLabel = idx === 0 ? '1号車' : '2号車';
+        // バックエンドからの direction を使用（フォールバックで号車表示）
+        let dirLabel;
+        if (bus.direction === 'to-wada') dirLabel = '飯田→和田';
+        else if (bus.direction === 'to-iida') dirLabel = '和田→飯田';
+        else dirLabel = `${idx + 1}号車`;
 
         // マーカー追加
         const marker = L.marker([bus.lat, bus.lng], { icon: busIcon })
