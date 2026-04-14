@@ -1,6 +1,7 @@
 import {
   BUS_STOPS, haversineDistance, findNearestStopIndex, jsonResponse,
 } from './shared.mjs';
+import { fetchActiveBuses } from './kurura.mjs';
 
 // Google Maps Directions API で渋滞考慮ルーティング
 async function routeViaGoogleMaps(busLat, busLng, destLat, destLng, waypoints) {
@@ -152,40 +153,10 @@ export const handler = async (event) => {
     return jsonResponse({ error: 'stopIndex または lat/lng を指定してください' }, 400);
   }
 
-  // くるらからバス位置をリアルタイム取得
+  // くるらからバス位置をリアルタイム取得（対象便のみ）
   let buses = [];
   try {
-    const locRes = await fetch(
-      'https://bus-kurura.jp/IBNAVI_location.php?plant=1&route=E1',
-      {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-          'Accept': 'text/html,application/xhtml+xml',
-          'Accept-Language': 'ja,en;q=0.9',
-        },
-      }
-    );
-    const cookie = (locRes.headers.get('set-cookie') || '').split(';')[0];
-
-    const mapRes = await fetch(
-      'https://bus-kurura.jp/IBNAVI_map.php?plant=1&route=E1',
-      {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-          'Accept': 'text/html,application/xhtml+xml',
-          'Cookie': cookie,
-        },
-      }
-    );
-    const html = await mapRes.text();
-    const m = html.match(/var\s+gps\s*=\s*\[([0-9.]+),\s*([0-9.]+)\]/);
-    if (m) {
-      const lat = parseFloat(m[1]);
-      const lng = parseFloat(m[2]);
-      if (!(Math.abs(lat - 35.514751) < 0.0001 && Math.abs(lng - 137.816897) < 0.0001)) {
-        buses.push({ route: 'E1', lat, lng, timestamp: new Date().toISOString() });
-      }
-    }
+    buses = await fetchActiveBuses();
   } catch (e) {
     // スクレイピング失敗
   }
