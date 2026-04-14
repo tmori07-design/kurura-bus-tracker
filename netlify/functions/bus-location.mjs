@@ -88,10 +88,21 @@ async function fetchBusGps(bus) {
   return { lat, lng };
 }
 
+// 対象便の判定:
+//   7:00 飯田→和田 (timetableCD=71016, mintime 06:55)
+//   16:24 かぐらの湯→飯田 (arrow=7_2, mintime 16:19)
+function isTargetDeparture(r) {
+  // mintime は "YYYY-MM-DD HH:MM:SS" 形式
+  const hm = (r.mintime || '').slice(11, 16); // "HH:MM"
+  if (r.arrow === '7_1' && r.timetableCD === '71016' && hm === '06:55') return true;
+  if (r.arrow === '7_2' && hm === '16:19') return true;
+  return false;
+}
+
 export const handler = async () => {
   try {
     const { strainsHtml } = await newSession();
-    const running = parseRunningBuses(strainsHtml);
+    const running = parseRunningBuses(strainsHtml).filter(isTargetDeparture);
 
     const buses = [];
     for (const r of running) {
@@ -99,11 +110,12 @@ export const handler = async () => {
         const gps = await fetchBusGps(r);
         if (!gps) continue;
         const dir = detectDirection(gps.lat, gps.lng);
-        // arrow=7_1 は飯田→和田、7_2 は和田→飯田
         const direction = r.arrow === '7_1' ? 'to-wada' : 'to-iida';
         buses.push({
           route: 'E1',
           vehicleNum: r.vehiclenum,
+          timetableCD: r.timetableCD,
+          mintime: r.mintime,
           direction,
           lat: gps.lat,
           lng: gps.lng,
