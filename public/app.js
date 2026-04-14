@@ -3,12 +3,12 @@
 let map;
 let busMarkers = [];
 let stopMarkers = [];
-let userMarker = null;
 let selectedStopMarker = null;
 let stops = [];
 let refreshInterval = null;
 let currentDirection = 'to-wada'; // 現在の方向選択
 let routeLine = null; // ルートライン
+let currentBuses = []; // 最新のバス位置
 
 // 7:00飯田駅前発で通過（↓）する停留所（データに残っているもののみ）
 const skippedToWada = [
@@ -37,14 +37,6 @@ const stopIcon = L.divIcon({
   iconAnchor: [11, 11]
 });
 
-// ユーザーアイコン
-const userIcon = L.divIcon({
-  className: 'user-marker',
-  html: '<div style="background:#0984e3;color:white;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 8px rgba(9,132,227,0.5);border:2px solid white;">📍</div>',
-  iconSize: [30, 30],
-  iconAnchor: [15, 15]
-});
-
 // 初期化
 async function init() {
   // Leafletマップ初期化（飯田駅付近）
@@ -66,7 +58,7 @@ async function init() {
 
   // イベントリスナー
   document.getElementById('btn-estimate').addEventListener('click', getEstimate);
-  document.getElementById('btn-my-location').addEventListener('click', useMyLocation);
+  document.getElementById('btn-bus-location').addEventListener('click', showBusLocation);
   document.getElementById('direction-select').addEventListener('change', (e) => {
     currentDirection = e.target.value;
     updateStopDropdown();
@@ -180,6 +172,9 @@ async function updateBusData() {
     busMarkers.forEach(m => map.removeLayer(m));
     busMarkers = [];
 
+    // 最新のバスリストを保存（バス現在地ボタンで使用）
+    currentBuses = data.isRunning ? data.buses : [];
+
     if (data.isRunning && data.buses.length > 0) {
       // バス運行中
       statusBar.className = 'status-bar running';
@@ -240,58 +235,22 @@ async function updateBusData() {
   }
 }
 
-// 現在地を使用
-function useMyLocation() {
-  if (!navigator.geolocation) {
-    alert('お使いのブラウザは位置情報に対応していません');
+// バスの現在地を表示（方向に合うバスを優先、無ければ先頭のバスへ）
+function showBusLocation() {
+  if (currentBuses.length === 0) {
+    alert('現在バスは運行していません');
     return;
   }
 
-  const btn = document.getElementById('btn-my-location');
-  btn.textContent = '📍 取得中...';
-  btn.disabled = true;
+  const bus = currentBuses.find(b => b.direction === currentDirection) || currentBuses[0];
+  const idx = busMarkers.length > 0
+    ? currentBuses.indexOf(bus)
+    : -1;
 
-  navigator.geolocation.getCurrentPosition(
-    async (position) => {
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
-
-      // ユーザーマーカーを表示
-      if (userMarker) map.removeLayer(userMarker);
-      userMarker = L.marker([lat, lng], { icon: userIcon })
-        .addTo(map)
-        .bindPopup('<b>現在地</b>')
-        .openPopup();
-
-      map.setView([lat, lng], 14);
-
-      // 最寄りバス停を探す
-      let nearestIdx = 0;
-      let nearestDist = Infinity;
-      stops.forEach((stop, i) => {
-        const d = haversine(lat, lng, stop.lat, stop.lng);
-        if (d < nearestDist) {
-          nearestDist = d;
-          nearestIdx = i;
-        }
-      });
-
-      // ドロップダウンを最寄りバス停に設定
-      document.getElementById('stop-select').value = nearestIdx;
-
-      // 到着予測を取得
-      await getEstimateByLocation(lat, lng);
-
-      btn.textContent = '📍 現在地から検索';
-      btn.disabled = false;
-    },
-    (error) => {
-      alert('位置情報の取得に失敗しました: ' + error.message);
-      btn.textContent = '📍 現在地から検索';
-      btn.disabled = false;
-    },
-    { enableHighAccuracy: true, timeout: 10000 }
-  );
+  map.setView([bus.lat, bus.lng], 15);
+  if (idx >= 0 && busMarkers[idx]) {
+    busMarkers[idx].openPopup();
+  }
 }
 
 // バス停選択（マップポップアップから）
@@ -330,21 +289,6 @@ async function getEstimate() {
 
   try {
     const res = await fetch(`/api/estimate?stopIndex=${stopIndex}`);
-    const data = await res.json();
-    renderEstimate(data);
-  } catch (error) {
-    resultDiv.innerHTML = '<p style="color:red;">エラーが発生しました</p>';
-  }
-}
-
-// 現在地ベースの到着予測
-async function getEstimateByLocation(lat, lng) {
-  const resultDiv = document.getElementById('estimate-result');
-  resultDiv.classList.remove('hidden');
-  resultDiv.innerHTML = '<p class="loading" style="text-align:center;color:#999;">計算中...</p>';
-
-  try {
-    const res = await fetch(`/api/estimate?lat=${lat}&lng=${lng}`);
     const data = await res.json();
     renderEstimate(data);
   } catch (error) {
