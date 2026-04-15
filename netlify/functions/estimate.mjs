@@ -56,6 +56,7 @@ async function routeViaGoogleMaps(busLat, busLng, destLat, destLng, waypoints) {
     distance_km: Math.round(distance / 1000 * 10) / 10,
     source: 'google',
     traffic_aware: trafficDuration > 0,
+    polyline: route.overview_polyline?.points || null,
   };
 }
 
@@ -212,6 +213,7 @@ export const handler = async (event) => {
       numStops,
       source: routing.source,
       trafficAware: routing.traffic_aware,
+      polyline: routing.polyline || null,
       timestamp: bus.timestamp,
     });
   }

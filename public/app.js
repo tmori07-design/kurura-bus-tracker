@@ -7,7 +7,8 @@ let selectedStopMarker = null;
 let stops = [];
 let refreshInterval = null;
 let currentDirection = 'to-wada'; // 現在の方向選択
-let routeLine = null; // ルートライン
+let routeLine = null; // ルートライン（全バス停を結ぶ参考ライン）
+let estimateRouteLine = null; // 到着予測で実際に使われた経路
 let currentBuses = []; // 最新のバス位置
 
 // 7:00飯田駅前発で通過（↓）する停留所（データに残っているもののみ）
@@ -303,6 +304,7 @@ function renderEstimate(data) {
   const resultDiv = document.getElementById('estimate-result');
 
   if (!data.isRunning) {
+    drawEstimateRoute(null);
     resultDiv.innerHTML = `
       <div class="estimate-no-bus">
         <div class="icon">😴</div>
@@ -314,6 +316,7 @@ function renderEstimate(data) {
   }
 
   if (data.estimates.length === 0) {
+    drawEstimateRoute(null);
     resultDiv.innerHTML = `
       <div class="estimate-no-bus">
         <div class="icon">🔍</div>
@@ -324,6 +327,9 @@ function renderEstimate(data) {
   }
 
   const nearest = data.estimates[0];
+
+  // Google Mapsが選んだ経路を地図に描画
+  drawEstimateRoute(nearest.polyline);
 
   const stopsInfo = nearest.numStops > 0
     ? `${nearest.numStops}停留所先`
@@ -352,6 +358,57 @@ function renderEstimate(data) {
       </div>
     ` : ''}
   `;
+}
+
+// Google Maps Encoded Polyline をデコードして [lat, lng] 配列に変換
+function decodePolyline(encoded) {
+  const points = [];
+  let index = 0;
+  let lat = 0;
+  let lng = 0;
+  const len = encoded.length;
+
+  while (index < len) {
+    let b, shift = 0, result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    const dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+    lat += dlat;
+
+    shift = 0;
+    result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    const dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
+    lng += dlng;
+
+    points.push([lat / 1e5, lng / 1e5]);
+  }
+  return points;
+}
+
+// 到着予測で使われた経路を地図に描画
+function drawEstimateRoute(polyline) {
+  if (estimateRouteLine) {
+    map.removeLayer(estimateRouteLine);
+    estimateRouteLine = null;
+  }
+  if (!polyline) return;
+  const coords = decodePolyline(polyline);
+  estimateRouteLine = L.polyline(coords, {
+    color: '#1a73e8',
+    weight: 6,
+    opacity: 0.8,
+    lineCap: 'round',
+    lineJoin: 'round',
+  }).addTo(map);
+  map.fitBounds(estimateRouteLine.getBounds().pad(0.1), { animate: false });
 }
 
 // Haversine距離計算（km）
