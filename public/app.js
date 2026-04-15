@@ -40,11 +40,13 @@ const stopIcon = L.divIcon({
 // 初期化
 async function init() {
   // Leafletマップ初期化（飯田駅付近）
-  map = L.map('map').setView([35.5147, 137.8210], 12);
+  // fadeAnimation無効化: GoogleタイルでfitBounds直後にタイルがopacity:0のまま残るケースの対策
+  map = L.map('map', { fadeAnimation: false }).setView([35.5147, 137.8210], 12);
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors',
-    maxZoom: 18
+  L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+    attribution: '&copy; Google',
+    maxZoom: 18,
+    subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
   }).addTo(map);
 
   // バス停データ取得
@@ -145,10 +147,10 @@ async function loadStops() {
       stopMarkers.push(marker);
     });
 
-    // マップを路線全体にフィット
+    // マップを路線全体にフィット（アニメーション無効 - Googleタイルで古いタイルが残るケースの対策）
     if (stops.length > 1) {
       const routeCoords = stops.map(s => [s.lat, s.lng]);
-      map.fitBounds(L.latLngBounds(routeCoords).pad(0.1));
+      map.fitBounds(L.latLngBounds(routeCoords).pad(0.1), { animate: false });
     }
   } catch (error) {
     console.error('バス停データ取得エラー:', error);
