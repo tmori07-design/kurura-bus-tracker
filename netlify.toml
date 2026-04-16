@@ -4,8 +4,6 @@
 
 [functions]
   node_bundler = "esbuild"
-  # メモリ削減: デフォルト1024MB→128MBでCompute(GB-Hrs)を1/8に削減
-  memory = 128
 
 # API リダイレクト（フロントエンドの /api/* をNetlify Functionsに転送）
 [[redirects]]

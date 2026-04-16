@@ -1,6 +1,9 @@
 import { jsonResponse, BUS_STOPS, findNearestStopIndex } from './shared.mjs';
 import { fetchActiveBuses } from './kurura.mjs';
 
+// メモリ削減: デフォルト1024MB→128MB（Compute GB-Hrs を1/8に削減）
+export const config = { memory: 128 };
+
 function detectDirection(lat, lng) {
   const idx = findNearestStopIndex(lat, lng, BUS_STOPS);
   const stop = BUS_STOPS[idx];

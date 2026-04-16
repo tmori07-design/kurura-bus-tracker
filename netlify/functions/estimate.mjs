@@ -3,6 +3,9 @@ import {
 } from './shared.mjs';
 import { fetchActiveBuses } from './kurura.mjs';
 
+// メモリ削減: デフォルト1024MB→128MB（Compute GB-Hrs を1/8に削減）
+export const config = { memory: 128 };
+
 // Google Maps Directions API で渋滞考慮ルーティング
 async function routeViaGoogleMaps(busLat, busLng, destLat, destLng, waypoints) {
   const apiKey = process.env.GOOGLE_MAPS_API_KEY;
