@@ -25,7 +25,7 @@ export const handler = async () => {
       buses,
       busCount: buses.length,
       isRunning: buses.length > 0,
-    });
+    }, 200, 10); // 10秒CDNキャッシュ
   } catch (e) {
     return jsonResponse({
       lastUpdated: new Date().toISOString(),
@@ -33,6 +33,6 @@ export const handler = async () => {
       busCount: 0,
       isRunning: false,
       error: e.message,
-    });
+    }, 200, 0); // エラー時はキャッシュしない
   }
 };

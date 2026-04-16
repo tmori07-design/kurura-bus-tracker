@@ -422,5 +422,22 @@ function haversine(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+// タブの表示/非表示でポーリングを制御（非表示中はサーバーリクエストを停止しクレジットを節約）
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    // タブが非表示になった → ポーリング停止
+    if (refreshInterval) {
+      clearInterval(refreshInterval);
+      refreshInterval = null;
+    }
+  } else {
+    // タブが再表示された → 即座にデータ取得＆ポーリング再開
+    updateBusData();
+    if (!refreshInterval) {
+      refreshInterval = setInterval(updateBusData, 10000);
+    }
+  }
+});
+
 // ページ読み込み時に初期化
 document.addEventListener('DOMContentLoaded', init);

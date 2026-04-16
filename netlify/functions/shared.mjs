@@ -96,13 +96,20 @@ export function findNearestStopIndex(lat, lng, stops) {
   return nearest;
 }
 
-export function jsonResponse(data, status = 200) {
+export function jsonResponse(data, status = 200, cacheSeconds = 0) {
+  const headers = {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Access-Control-Allow-Origin': '*',
+  };
+  // CDNエッジキャッシュ: 指定秒数だけNetlify CDNがレスポンスを保持し、
+  // その間の同一リクエストはFunctionを起動せずCDNから直接返す
+  if (cacheSeconds > 0) {
+    headers['Cache-Control'] = `public, s-maxage=${cacheSeconds}, max-age=${cacheSeconds}`;
+    headers['Netlify-CDN-Cache-Control'] = `public, max-age=${cacheSeconds}`;
+  }
   return {
     statusCode: status,
-    headers: {
-      'Content-Type': 'application/json; charset=utf-8',
-      'Access-Control-Allow-Origin': '*',
-    },
+    headers,
     body: JSON.stringify(data),
   };
 }

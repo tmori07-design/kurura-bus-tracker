@@ -85,9 +85,21 @@ async function fetchBusGps(bus) {
   return { lat, lng };
 }
 
+// --- インメモリキャッシュ ---
+// Netlify Functions はウォームコンテナで同じプロセスが再利用されることがある。
+// 10秒間キャッシュすることで、短時間の連続呼び出しでくるらへの重複リクエストを防ぐ。
+let busCache = { data: null, expiry: 0 };
+const CACHE_TTL_MS = 10_000; // 10秒
+
 // 対象便のみのGPS位置を取得（複数バス対応）
 // 返り値: [{ route, vehicleNum, timetableCD, mintime, direction, lat, lng, timestamp }, ...]
 export async function fetchActiveBuses() {
+  // キャッシュが有効ならそのまま返す（くるらへのリクエストを省略）
+  const now = Date.now();
+  if (busCache.data && now < busCache.expiry) {
+    return busCache.data;
+  }
+
   const { strainsHtml } = await newSession();
   const running = parseRunningBuses(strainsHtml).filter(isTargetDeparture);
 
@@ -111,5 +123,8 @@ export async function fetchActiveBuses() {
       // 1台失敗しても他を続ける
     }
   }
+
+  // 結果をキャッシュに保存
+  busCache = { data: out, expiry: now + CACHE_TTL_MS };
   return out;
 }
