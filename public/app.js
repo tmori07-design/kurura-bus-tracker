@@ -134,8 +134,10 @@ function updateRouteLine(orderedStops) {
   if (routeLine) map.removeLayer(routeLine);
 
   // 事前生成済みポリラインがあれば、実際の道路に沿ったルートを表示
+  // 配列形式: セグメント分割されたポリラインを結合して1本の線にする
   if (routePolylines && routePolylines[currentDirection]) {
-    const coords = decodePolyline(routePolylines[currentDirection]);
+    const segments = routePolylines[currentDirection];
+    const coords = segments.flatMap(seg => decodePolyline(seg));
     routeLine = L.polyline(coords, {
       color: '#e84393',
       weight: 4,
