@@ -25,3 +25,9 @@
   from = "/api/config"
   to = "/.netlify/functions/config"
   status = 200
+
+# 一時的: ルートポリライン生成用（生成後に削除）
+[[redirects]]
+  from = "/api/generate-routes"
+  to = "/.netlify/functions/generate-routes"
+  status = 200

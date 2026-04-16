@@ -1,0 +1,121 @@
+// 一時的な関数: 往路・復路のルートポリラインをGoogle Directions APIで生成
+// 全バス停を経由するため、25停留所ごとにセグメント分割してAPIを呼び出す
+// 結果を public/routes.json に保存したら、この関数は削除する
+import { BUS_STOPS } from './shared.mjs';
+
+export const config = { memory: 128 };
+
+const skippedToWada = ['地域交流センター', '郵便局前', 'かぐらの湯'];
+const skippedToIida = [
+  '丸五商店前', '上新町', '中学校前', '押出', '酒屋前',
+  '大島', '観音前', '日影沢', '畑上', '小道木',
+];
+const iidaOnlyNames = ['知久町１丁目', '知久町３丁目', '飯田病院前'];
+
+function getOrderedStops(direction) {
+  if (direction === 'to-wada') {
+    return BUS_STOPS
+      .filter(s => s.order <= 68 && !iidaOnlyNames.includes(s.name) && !skippedToWada.includes(s.name))
+      .sort((a, b) => a.order - b.order);
+  } else {
+    const wadaOnlyNames = ['飯田市役所'];
+    const commonStops = BUS_STOPS
+      .filter(s => s.order <= 68 && !wadaOnlyNames.includes(s.name) && !skippedToIida.includes(s.name))
+      .sort((a, b) => b.order - a.order);
+
+    const orderedStops = [];
+    for (const s of commonStops) {
+      orderedStops.push(s);
+      if (s.name === '中央広場') {
+        for (const name of iidaOnlyNames) {
+          const stop = BUS_STOPS.find(st => st.name === name);
+          if (stop) orderedStops.push(stop);
+        }
+      }
+    }
+    return orderedStops;
+  }
+}
+
+// 25停留所ごとにセグメント分割（Google APIの制限: origin + 23 waypoints + destination = 25）
+function splitIntoSegments(stops, maxPerSegment = 25) {
+  const segments = [];
+  for (let i = 0; i < stops.length; i += maxPerSegment - 1) {
+    const segment = stops.slice(i, i + maxPerSegment);
+    if (segment.length >= 2) segments.push(segment);
+  }
+  return segments;
+}
+
+async function fetchSegmentRoute(stops) {
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  if (!apiKey) return null;
+
+  const origin = stops[0];
+  const dest = stops[stops.length - 1];
+  const mid = stops.slice(1, -1);
+
+  let url = `https://maps.googleapis.com/maps/api/directions/json`
+    + `?origin=${origin.lat},${origin.lng}`
+    + `&destination=${dest.lat},${dest.lng}`
+    + `&key=${apiKey}`;
+
+  if (mid.length > 0) {
+    const wp = mid.map(s => `${s.lat},${s.lng}`).join('|');
+    url += `&waypoints=${encodeURIComponent(wp)}`;
+  }
+
+  const res = await fetch(url);
+  const data = await res.json();
+
+  if (data.status !== 'OK' || !data.routes?.length) {
+    return { error: data.status, errorMessage: data.error_message || '' };
+  }
+  return { polyline: data.routes[0].overview_polyline.points };
+}
+
+async function fetchFullRoute(stops) {
+  const segments = splitIntoSegments(stops);
+  const polylines = [];
+  const segmentDetails = [];
+
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    const result = await fetchSegmentRoute(seg);
+    if (result?.error) {
+      return { error: result.error, segment: i, stops: seg.map(s => s.name) };
+    }
+    polylines.push(result.polyline);
+    segmentDetails.push({
+      from: seg[0].name,
+      to: seg[seg.length - 1].name,
+      stopCount: seg.length,
+    });
+  }
+
+  return { polylines, segmentDetails };
+}
+
+export const handler = async () => {
+  const toWadaStops = getOrderedStops('to-wada');
+  const toIidaStops = getOrderedStops('to-iida');
+
+  const toWada = await fetchFullRoute(toWadaStops);
+  const toIida = await fetchFullRoute(toIidaStops);
+
+  return {
+    statusCode: 200,
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Access-Control-Allow-Origin': '*',
+    },
+    body: JSON.stringify({
+      'to-wada': toWada,
+      'to-iida': toIida,
+      stopsUsed: {
+        'to-wada': toWadaStops.map(s => s.name),
+        'to-iida': toIidaStops.map(s => s.name),
+      },
+    }, null, 2),
+  };
+};
