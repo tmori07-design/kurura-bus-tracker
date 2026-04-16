@@ -7,9 +7,10 @@ let selectedStopMarker = null;
 let stops = [];
 let refreshInterval = null;
 let currentDirection = 'to-wada'; // 現在の方向選択
-let routeLine = null; // ルートライン（全バス停を結ぶ参考ライン）
+let routeLine = null; // ルートライン（道路に沿った固定ルート）
 let estimateRouteLine = null; // 到着予測で実際に使われた経路
 let currentBuses = []; // 最新のバス位置
+let routePolylines = null; // 事前生成済みルートポリライン（往路・復路）
 
 // 7:00飯田駅前発で通過（↓）する停留所（データに残っているもののみ）
 const skippedToWada = [
@@ -49,6 +50,14 @@ async function init() {
     maxZoom: 18,
     subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
   }).addTo(map);
+
+  // ルートデータ読み込み（事前生成済みの道路に沿ったポリライン）
+  try {
+    const routeRes = await fetch('/routes.json');
+    routePolylines = await routeRes.json();
+  } catch (e) {
+    console.warn('ルートデータ読み込み失敗:', e);
+  }
 
   // バス停データ取得
   await loadStops();
@@ -120,9 +129,22 @@ function updateStopDropdown() {
   updateRouteLine(orderedStops);
 }
 
-// ルートライン更新（選択便の停車停留所のみ）
+// ルートライン更新（事前生成済みの道路ルート or フォールバックで直線接続）
 function updateRouteLine(orderedStops) {
   if (routeLine) map.removeLayer(routeLine);
+
+  // 事前生成済みポリラインがあれば、実際の道路に沿ったルートを表示
+  if (routePolylines && routePolylines[currentDirection]) {
+    const coords = decodePolyline(routePolylines[currentDirection]);
+    routeLine = L.polyline(coords, {
+      color: '#e84393',
+      weight: 4,
+      opacity: 0.6,
+    }).addTo(map);
+    return;
+  }
+
+  // フォールバック: バス停を直線で接続
   if (orderedStops.length > 1) {
     const routeCoords = orderedStops.map(s => [s.lat, s.lng]);
     routeLine = L.polyline(routeCoords, {
