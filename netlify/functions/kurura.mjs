@@ -34,14 +34,13 @@ function parseRunningBuses(html) {
   return buses;
 }
 
-// 対象便のみを抽出:
-//   7:00 飯田→和田 (timetableCD=71016, mintime 06:55)
-//   16:24 かぐらの湯→飯田 (arrow=7_2, mintime 16:19)
+// E1 路線の対象便を抽出:
+//   arrow=7_1 → 飯田→和田方面（朝便など）
+//   arrow=7_2 → 和田→飯田方面（復路便など）
+// strains.php はすでに route=E1 でフィルタ済みなので、
+// arrow コードだけで判定すれば時刻改正があっても追従できる
 export function isTargetDeparture(r) {
-  const hm = (r.mintime || '').slice(11, 16);
-  if (r.arrow === '7_1' && r.timetableCD === '71016' && hm === '06:55') return true;
-  if (r.arrow === '7_2' && hm === '16:19') return true;
-  return false;
+  return r.arrow === '7_1' || r.arrow === '7_2';
 }
 
 // 1台のバスのGPSを取得（session POST → map.php）
