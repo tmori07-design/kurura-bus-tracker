@@ -6,9 +6,10 @@ let stopMarkers = [];
 let selectedStopMarker = null;
 let stops = [];
 let refreshInterval = null;
+let estimateInterval = null; // 到着予測の自動更新タイマー
+let lastSelectedStopIndex = null; // 最後に選択したバス停（自動更新用）
 let currentDirection = 'to-wada'; // 現在の方向選択
 let routeLine = null; // ルートライン（道路に沿った固定ルート）
-let estimateRouteLine = null; // 到着予測で実際に使われた経路
 let currentBuses = []; // 最新のバス位置
 let routePolylines = null; // 事前生成済みルートポリライン（往路・復路）
 
@@ -73,6 +74,7 @@ async function init() {
   document.getElementById('btn-bus-location').addEventListener('click', showBusLocation);
   document.getElementById('direction-select').addEventListener('change', (e) => {
     currentDirection = e.target.value;
+    stopEstimateAutoRefresh(); // 方向変更時は自動更新を停止
     updateStopDropdown();
     updateBusData();
   });
@@ -288,7 +290,7 @@ function selectStop(index) {
 // window に公開
 window.selectStop = selectStop;
 
-// 到着予測を取得
+// 到着予測を取得（ボタンクリック時 or 初回呼び出し）
 async function getEstimate() {
   const select = document.getElementById('stop-select');
   const stopIndex = select.value;
@@ -302,7 +304,7 @@ async function getEstimate() {
   resultDiv.classList.remove('hidden');
   resultDiv.innerHTML = '<p class="loading" style="text-align:center;color:#999;">計算中...</p>';
 
-  // 選択されたバス停をハイライト
+  // 選択されたバス停をハイライト（初回のみ地図を移動）
   if (selectedStopMarker) map.removeLayer(selectedStopMarker);
   const stop = stops[parseInt(stopIndex)];
   selectedStopMarker = L.circleMarker([stop.lat, stop.lng], {
@@ -314,6 +316,18 @@ async function getEstimate() {
   }).addTo(map);
   map.setView([stop.lat, stop.lng], 14);
 
+  // 自動更新の対象として記憶
+  lastSelectedStopIndex = stopIndex;
+
+  await fetchAndRenderEstimate(stopIndex);
+
+  // 自動更新を開始（10秒ごと）
+  startEstimateAutoRefresh();
+}
+
+// 到着予測データの取得と描画（地図移動なし、テキストのみ更新）
+async function fetchAndRenderEstimate(stopIndex) {
+  const resultDiv = document.getElementById('estimate-result');
   try {
     const res = await fetch(`/api/estimate?stopIndex=${stopIndex}`);
     const data = await res.json();
@@ -323,12 +337,29 @@ async function getEstimate() {
   }
 }
 
+// 到着予測の自動更新を開始
+function startEstimateAutoRefresh() {
+  stopEstimateAutoRefresh();
+  estimateInterval = setInterval(() => {
+    if (lastSelectedStopIndex != null) {
+      fetchAndRenderEstimate(lastSelectedStopIndex);
+    }
+  }, 10000);
+}
+
+// 到着予測の自動更新を停止
+function stopEstimateAutoRefresh() {
+  if (estimateInterval) {
+    clearInterval(estimateInterval);
+    estimateInterval = null;
+  }
+}
+
 // 到着予測結果を表示
 function renderEstimate(data) {
   const resultDiv = document.getElementById('estimate-result');
 
   if (!data.isRunning) {
-    drawEstimateRoute(null);
     resultDiv.innerHTML = `
       <div class="estimate-no-bus">
         <div class="icon">😴</div>
@@ -340,7 +371,6 @@ function renderEstimate(data) {
   }
 
   if (data.estimates.length === 0) {
-    drawEstimateRoute(null);
     resultDiv.innerHTML = `
       <div class="estimate-no-bus">
         <div class="icon">🔍</div>
@@ -351,9 +381,6 @@ function renderEstimate(data) {
   }
 
   const nearest = data.estimates[0];
-
-  // Google Mapsが選んだ経路を地図に描画
-  drawEstimateRoute(nearest.polyline);
 
   const stopsInfo = nearest.numStops > 0
     ? `${nearest.numStops}停留所先`
@@ -375,6 +402,7 @@ function renderEstimate(data) {
     </div>
     <div class="estimate-detail">
       更新: ${new Date(nearest.timestamp).toLocaleTimeString('ja-JP')}
+      <span style="margin-left:8px;color:#27ae60;">🔄 自動更新中（10秒ごと）</span>
     </div>
     ${data.estimates.length > 1 ? `
       <div style="margin-top:10px;font-size:12px;color:#999;">
@@ -417,24 +445,6 @@ function decodePolyline(encoded) {
   return points;
 }
 
-// 到着予測で使われた経路を地図に描画
-function drawEstimateRoute(polyline) {
-  if (estimateRouteLine) {
-    map.removeLayer(estimateRouteLine);
-    estimateRouteLine = null;
-  }
-  if (!polyline) return;
-  const coords = decodePolyline(polyline);
-  estimateRouteLine = L.polyline(coords, {
-    color: '#1a73e8',
-    weight: 6,
-    opacity: 0.8,
-    lineCap: 'round',
-    lineJoin: 'round',
-  }).addTo(map);
-  map.fitBounds(estimateRouteLine.getBounds().pad(0.1), { animate: false });
-}
-
 // Haversine距離計算（km）
 function haversine(lat1, lng1, lat2, lng2) {
   const R = 6371;
@@ -449,16 +459,22 @@ function haversine(lat1, lng1, lat2, lng2) {
 // タブの表示/非表示でポーリングを制御（非表示中はサーバーリクエストを停止しクレジットを節約）
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
-    // タブが非表示になった → ポーリング停止
+    // タブが非表示になった → 全ポーリング停止
     if (refreshInterval) {
       clearInterval(refreshInterval);
       refreshInterval = null;
     }
+    stopEstimateAutoRefresh();
   } else {
     // タブが再表示された → 即座にデータ取得＆ポーリング再開
     updateBusData();
     if (!refreshInterval) {
       refreshInterval = setInterval(updateBusData, 10000);
+    }
+    // 到着予測も再開（バス停を選択していた場合）
+    if (lastSelectedStopIndex != null) {
+      fetchAndRenderEstimate(lastSelectedStopIndex);
+      startEstimateAutoRefresh();
     }
   }
 });
