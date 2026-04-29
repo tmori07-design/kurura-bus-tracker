@@ -1,0 +1,113 @@
+// 固定ルートに基づく距離計算モジュール
+// バスは事前生成済みのポリライン（public/routes.json と同じデータ）を必ず通る前提で
+// 距離・到着時刻を算出する。Google Mapsの「最適ルート」には依存しない。
+
+import { haversineDistance } from './shared.mjs';
+
+// 事前生成済みルートポリライン（public/routes.json と同期）
+// 編集時は両方を一致させること
+const POLYLINES = {
+  'to-wada': [
+    "uhxwEocehY{@_AZk@z@aB|BkEP[Vi@RNbDjCnElDrAlAn@kApA_D^_A}@o@aE_DcCgBmBwAp@eBp@aBpAkChCyDlMk\\~K_ZfBaEbAw@xG{BnDy@~AAV?LyAj@}FrA}MVmC`@_Hh@{FhFk[zCkUjFm_@vAoErBwBhAi@`Ca@j@AhA@Dw@ZaGLyB@SrAJjAJd@FbCr@v@\\x@PLCjCr@vDg@b@_APgB_AiCw@gFAwAZcAn@mAb@Kp@^RfFf@`@zBa@vCgAzEeA`AQZ]EaBm@iE]}DLoC^aBhA}BP{EfAuDvCuGnB{CZyAf@yFnAcHp@}BJ{BVmJUiEByCnAgFdBgE~AcCfAmAxCgB~CL|@ER`@bBh@|@r@}@s@cBi@Sa@ZSfBsCxEuGfA}B^gBIaAOkB]g@_BmCsAyDScBFsEOsBOp@SGk@wA_@S[m@MkAUw@HM|@`BnEeA?aAxCm@BLBRXLZHTPXu@MqCpAgBXiBQ{@q@m@_@_B[}@w@i@aC}@}A_BkCNgAVoARkBkA{B_JAcAx@iAz@_Af@RnBt@bBoDdDiFf@g@nAEpHmFZiBCs@a@m@oB{AlEiG|BaCzAyA^eANw@nBmAzAcAr@iCr@eDp@kBZiArBkCn@}ATe@zBBbA]fCd@jABlAm@hCuC`Eu@n@mArAoAt@c@~B?dABzBi@nCm@lAaAz@q@vC_@fAi@hB{ANyCb@oDh@kA~@s@dDyAhAAz@AZMv@IbBaA`BXt@At@a@nCoCf@CvAj@xBt@dABnAQTq@b@yC`BaBzBkAvAYvCy@\\Az@{AfAcAXmAt@o@`Cs@zBMdAJ`@Hp@QjBgCfCmCn@oBWYWTcDjEy@b@Mg@~@u@xB{EbAqCf@}@hAq@zEmCh@A`@\\rA\\rB|@h@QpBmB@}AAk@j@{AHcBAgA^eAJs@g@u@yCeCcBsCoAoDB}@|@cBh@cA`AkDOgBaAyAaBs@a@iBU}CDcI@k@\\BTF`@t@j@pBf@tE?nAm@~AqAXaAGWUK{@hAoHfDee@dQgjC|IssAhAaMjAaFfBeEtAyBvEmEbGyC~CsArBWvBc@bAYdCPvA^`An@dB`BxAn@nDx@zCp@hAx@zAhChArAdAf@b@EnBaAy@b@mBh@~A~@z@IhAcAlAeAz@I~@\\jEtFjAn@x@E`Di@p@@vBr@xAfAjArBv@bCtBzBtA`Bx@rBnB`BtAXfBu@~BH~BfArApBhB|EhHrCjDLzBhAtBj@hBf@l@z@|AlIpA`HbAdBxAfAdBh@jBIhF{@nEsAzEP",
+    "socwEomciYzCRj@Fr@PhCnA`@Nb@DnBBx@LvBl@lEnAtBn@hDv@hA\\hAXlBPt@JbCZ`@Pp@b@l@Vf@DX?~@A`@DrAb@rCt@f@Pb@R^Z^l@v@bBZj@JNVPPFRB^CxCy@LCBLBFCGCMHELGROX]RWVSb@Qb@M|A@NBRFd@X`@Zh@t@NZ^vA`@bBLZNRRRRHf@FRD\\PVZVn@P~@LZLPb@Vt@Lt@F|@IvAMf@K`@Q^Y`@m@XiA\\aBRe@P[\\_@ZQd@S~@It@ATBRFb@Pb@TRPb@NX?l@OnAYVCXBVJ~@n@|AfAh@\\`@Hh@@h@Q\\U|BmBh@_@b@S`@Kx@Aj@Hd@Ln@RXNVTX^fBnCVh@\\fAXbAPb@TZb@Xb@JxBP`Fb@rAT`AXjAb@lAd@nAj@bAj@`Af@v@Pn@JbDj@bCt@xB|@pFjBnBn@zBr@f@Hr@Br@@r@Pb@P^Vn@`@`@P`@FlBIbASv@UdAIl@FTF`A`@^PZVX`@Zx@j@zBN^T\\j@d@v@d@xAv@`BfAx@t@|AfA`B|@p@X^Dh@C~CUxAKz@C`AJv@ZdCnAv@l@|@h@RNh@VfCv@tCt@jADn@CXK`@]l@m@j@a@XKl@GdBBT@`@Jb@\\^XZVj@^hB~@XLz@XhARlEvAp@Rn@XdBj@dAXr@Pp@T`D|ArAp@hAh@ZH`@DpEVl@?pAGj@Cp@Dh@Hp@Vr@f@~BjB~@n@XTbA~@\\^b@p@~A`D`@j@j@j@pBrAjAp@r@T`@Fd@@b@CdEq@`AS^Mf@[t@q@r@y@rB_Cd@g@RK`@M^@THlBhAI\\DN`@Vb@Tn@^j@d@Zh@DRARKhAUdAa@rAOn@AVLVXThAj@`Ad@x@Rn@Jn@APSHMRc@PiATy@JSJILIl@w@FOLa@PSp@a@t@[`@UR[^u@x@mBVaAn@}At@aBRSZSt@Qf@SdAe@f@Kb@AfADP?REJCf@DzA`@ZTh@p@^ZRD^T~@jAT`@TRn@^b@ZxAxAt@t@pBzDNL`@N|@TLCHJjAf@^JV@X?ZJx@h@XLXFRCRKFKL]V}@PSh@Ol@KN@FJTl@Ld@Hh@Fj@Fn@Ed@o@xDEj@DRLNZp@^lAl@vB",
+    "iorvEe|}hYZ|AD`DAn@ARINWV]Ne@H[FqAFa@Hm@Te@ZKPWn@EZ?VDLRVVVHNBh@FPJRdAhD`@nALd@Dt@Hl@CjA?\\F\\F`@C`@YhCOv@IXUn@]lAOl@I`@A^?j@D\\Pr@d@z@RVVP`@d@n@~@d@d@dAz@`@Xd@RrA~@p@b@h@RPDfATbAV|Bl@l@VbAXbA^\\V^Pj@Tk@U_@Q]WcA_@cAYkAnC?@",
+  ],
+  'to-iida': [
+    "atqvEalzhYa@VCIQe@s@aBaAmB}@{AeBaCaBuBs@w@IMLQTa@nBcENYJQKPOXm@lAwAvCMPKIQSk@o@WWk@g@}@g@mAg@oBi@{GaBkAg@w@k@g@k@S[_@}@U{@Im@G}@GkBMyCSiCYwCa@cCk@uCk@kCe@oBu@_CcAeCgDaFiAyA}GuJyIgMmAsAuAoAuCyB_Ag@aAu@}AcAiBoA{BsA}G_EcB}@GRADDPJJx@b@n@^j@d@Zh@DRARKhAUdAa@rAOn@CPBQNo@`@sATeAJiA@SES[i@k@e@o@_@c@Ua@WEOH]mBiAUI_@Aa@Gs@UkAq@qBsAk@k@a@k@iA}By@uA]_@cA_AYU_Ao@q@k@mA_As@g@q@Wi@Iq@Ek@BqAFm@?qEWa@E[I}C{AaD}Aq@Us@QeAYeBk@o@Yq@SmEwA_@Ii@I{@YcCmAk@_@[W_@Yc@]a@KUAeBCm@FYJk@`@m@l@a@\\YJo@BkAEuCu@gCw@i@WSO}@i@w@m@eCoAw@[aAK{@ByF`@i@B_@Eq@YaB}@}AgAy@u@aBgAe@WkBeAk@e@U]O_@k@{B[y@Ya@[W_@QaAa@UGm@GeAHw@TcARmBHa@Ga@Qo@a@_@Wc@Qs@QgBEg@I{Bs@mGuBsAe@yB}@cCu@eAQmCe@w@QaAg@cAk@oAk@mAe@kAc@aAYsAUiBOqFe@c@Kc@YU[Qc@w@kCWi@gBoCY_@WUYOo@Se@Mk@Iy@@a@Jc@Ri@^}BlB]Ti@Pi@Aa@Ii@]_Aq@}AeAWKYCWB[HaB^Y?c@OSQc@Uc@QSGUCu@@_AHe@R[P]^QZSd@]`BYhAa@l@_@Xa@Pg@JwAL}@Hu@Gu@Mc@WMQM[Q_AWo@W[]Q{@MSISSOSM[a@cB_@wAO[i@u@a@[e@YSGOCeAAW?c@Lc@PWRm@t@SNMFIDBLBFCGCMMBKDs@PyA`@_@BSCQGWQKO[k@w@cB_@m@_@[c@S{DgAsAc@a@E_A@Y?g@Em@Wq@c@a@Qu@KcC[mBQiAYiA]cAUeBa@{@WwDgAgEmAy@MaAAm@Ac@Ea@Ou@_@sAo@s@Qk@GuBOcCM[Cy@Eg@@}@N{An@kBb@sDj@c@Fc@Bc@Aa@IcA_@m@_@k@g@k@{@Wi@Y{@S{@c@iDWuAs@oEQg@Sc@YW]QkAUcAOq@[oAw@k@QUC",
+    "qbewEmjdiYgB@uAe@}DsAqA_A{BeGeB_BiB_@{AA}@d@qALwBoA{@sA}@oBcCaCiAiBu@cC{AiBgDqAeBHiCb@eAOyBkCkCyCaAM}@ZeBfBs@X}@KaAs@`@GdCeAsCfASDq@m@[[eBsCmBgB_K_CgDsCgAi@_BWqBCuAf@mC^cI~CcCrAqD|CoA`BcD|G{@lDy@|HiD`h@eDvf@iGb_AiKd}AwBb_@EjDZ`@`@Fd@OXe@FqAk@gFu@wC_@O]CAj@GfBCtCZ`ETvBX`@`AZbAfA`@rBuA|EaAtAWjAHpAzCdGdCvBfAdA?h@m@jBBhCu@`CJdB}CnCaBs@yAWcAq@q@NiBdAyDfCeEdKiA~@Dh@f@MbDuDj@_AVN]dByBxB{AdCkAz@g@Co@QiBHmC\\oAv@[z@Wv@i@^yAnBo@@mAd@_ElAmClBo@hBOfBe@b@}CKcEyA}BpBwBlAeB_@c@F_At@kB\\cBEqBn@wBhAu@~@m@tCOdEUj@}@n@uAz@iC\\gAb@cAjAqG|AaE?aAT{AvAm@jAa@VyC`@y@j@oAdBeAn@mAJgCm@wBb@oAI_@Pe@`BiCtD{@zBa@pCgAbDMf@s@d@mB|@g@|@a@nAeCvCkA~@mBfC{A~BSTPTt@d@dAbAHn@Q`BqAnA_FnDuAHmBfC{BrDeAbC]AuBeAe@XuA`BGbAdAtDl@zCrAvAt@Pj@KjA_@jCSf@Vx@`A|Al@rBpAd@zBp@v@Vn@CfAaApBa@b@Eh@PzAOz@{AhDqA@UP_@b@{AMWb@Kf@Oj@[o@s@}@e@s@Ka@IcAOg@^H\\hAPF~D}@HSGo@l@UnBa@BJHd@h@FVRSj@i@hBoBP[h@uAMe@XDpCIjEJjBhBhFnBlCZfDU~Au@jB{@pAgDpEgBzCYXSJN\\LFdAXfAv@c@_@iBq@MGO]c@Fq@E}AOgARuAz@wAlAaB`CyA|CeBlGOnCLrCBxEi@zKaA~Ck@nDi@vFO~Ao@pAwDbHuBzFQ`Fs@lBi@lAYzBLzE\\fDf@|CQf@s@VaFbAwGrBu@YQcACcDk@i@{@\\_AvCl@tFbAzCDzAe@`BcDp@aDq@QAEBy@QmDkAs@MkAKsAKARMxBI~AWxE{AAiBLaBl@qB~A}AxD}A|IaFp`@qDvTmCvPm@tFsBjWiAhLMxAW?_A@}@@a@HkJxCyA~@{FhNqMb]eFpMrA`AxA`Aa@lA`@n@xAdAz@p@gAjCiCrGiBpEsI`Sk@nA",
+    "s~wwEyxdhYTg@^y@o@i@w@i@o@g@}@q@yAkAECMLUTA?EAUW",
+  ],
+};
+
+// Google Maps Encoded Polyline をデコードして [lat, lng] 配列に変換
+function decodePolyline(encoded) {
+  const points = [];
+  let index = 0;
+  let lat = 0;
+  let lng = 0;
+  const len = encoded.length;
+
+  while (index < len) {
+    let b, shift = 0, result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    const dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+    lat += dlat;
+
+    shift = 0;
+    result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    const dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
+    lng += dlng;
+
+    points.push([lat / 1e5, lng / 1e5]);
+  }
+  return points;
+}
+
+// デコード済み座標のキャッシュ（同じ実行コンテキスト内で再利用）
+const decodedCache = {};
+
+function getDecodedRoute(direction) {
+  if (!decodedCache[direction]) {
+    const segments = POLYLINES[direction];
+    if (!segments) return null;
+    decodedCache[direction] = segments.flatMap(seg => decodePolyline(seg));
+  }
+  return decodedCache[direction];
+}
+
+// ポリライン上で指定座標に最も近い点のインデックスを返す
+function findClosestPointIndex(lat, lng, coords) {
+  let minDist = Infinity;
+  let bestIdx = 0;
+  for (let i = 0; i < coords.length; i++) {
+    const d = haversineDistance(lat, lng, coords[i][0], coords[i][1]);
+    if (d < minDist) {
+      minDist = d;
+      bestIdx = i;
+    }
+  }
+  return bestIdx;
+}
+
+// ポリライン上の二点間の累積距離(km)を計算
+function distanceAlongPolyline(coords, startIdx, endIdx) {
+  const a = Math.min(startIdx, endIdx);
+  const b = Math.max(startIdx, endIdx);
+  let total = 0;
+  for (let i = a; i < b; i++) {
+    total += haversineDistance(coords[i][0], coords[i][1], coords[i + 1][0], coords[i + 1][1]);
+  }
+  return total;
+}
+
+// バス位置から目的地までの「実際のバスルート」上の距離を計算
+//
+// 返り値: { distanceKm, busPassed } または null
+//   distanceKm: ポリライン上の累積距離(km)
+//   busPassed:  true なら バスはすでに目的地を通過済み
+//
+// 注意: ポリラインは進行方向順に並んでいる
+//   to-wada: 飯田駅前(0) → かぐらの湯(N)
+//   to-iida: かぐらの湯(0) → 飯田駅前(N)
+export function calculateRouteDistance(busLat, busLng, destLat, destLng, direction) {
+  const coords = getDecodedRoute(direction);
+  if (!coords || coords.length === 0) return null;
+
+  const busIdx = findClosestPointIndex(busLat, busLng, coords);
+  const destIdx = findClosestPointIndex(destLat, destLng, coords);
+
+  // 進行方向と逆向き(destIdx < busIdx)なら、バスは目的地を通過済み
+  const busPassed = destIdx < busIdx;
+  const distanceKm = distanceAlongPolyline(coords, busIdx, destIdx);
+
+  return { distanceKm, busPassed };
+}

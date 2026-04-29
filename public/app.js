@@ -382,6 +382,18 @@ function renderEstimate(data) {
 
   const nearest = data.estimates[0];
 
+  // バスがすでに目的地を通過済みの場合
+  if (nearest.busPassed) {
+    resultDiv.innerHTML = `
+      <div class="estimate-no-bus">
+        <div class="icon">✅</div>
+        <div class="message">バスは通過済みです</div>
+        <div class="sub">${data.target} はすでに通過しました</div>
+      </div>
+    `;
+    return;
+  }
+
   const stopsInfo = nearest.numStops > 0
     ? `${nearest.numStops}停留所先`
     : '付近';

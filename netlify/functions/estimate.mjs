@@ -2,112 +2,47 @@ import {
   BUS_STOPS, haversineDistance, findNearestStopIndex, jsonResponse,
 } from './shared.mjs';
 import { fetchActiveBuses } from './kurura.mjs';
+import { calculateRouteDistance } from './route-distance.mjs';
 
 // メモリ削減: デフォルト1024MB→128MB（Compute GB-Hrs を1/8に削減）
 export const config = { memory: 128 };
 
-// Google Maps Directions API で渋滞考慮ルーティング
-async function routeViaGoogleMaps(busLat, busLng, destLat, destLng, waypoints) {
-  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
-  if (!apiKey) return null;
+// バスの平均移動速度(km/h)
+// NAVITIME時刻表より逆算: かぐらの湯⇄飯田駅前は約45km・約68〜90分 → 30〜40km/h
+// 山道・狭隘区間を含むため保守的に30km/hを採用
+const AVG_BUS_SPEED_KMH = 30;
 
-  let url = `https://maps.googleapis.com/maps/api/directions/json?origin=${busLat},${busLng}&destination=${destLat},${destLng}&departure_time=now&traffic_model=best_guess&key=${apiKey}`;
+// 固定ルート（実際にバスが通る道）に沿った距離・時間計算
+// バスは渋滞によらず必ず同じ道を通るため、Google Mapsの最適ルートには依存しない
+function estimateAlongFixedRoute(busLat, busLng, destLat, destLng, direction, waypoints) {
+  const result = calculateRouteDistance(busLat, busLng, destLat, destLng, direction);
+  if (!result) return null;
 
-  // 中間バス停をwaypointsとして追加
-  if (waypoints && waypoints.length > 2) {
-    let mid = waypoints.slice(1, -1);
-    if (mid.length > 23) {
-      const step = mid.length / 23;
-      mid = Array.from({ length: 23 }, (_, i) => mid[Math.floor(i * step)]);
-    }
-    const wp = mid.map(s => `${s.lat},${s.lng}`).join('|');
-    url += `&waypoints=${encodeURIComponent(wp)}`;
-  }
+  const { distanceKm, busPassed } = result;
 
-  const res = await fetch(url);
-  const data = await res.json();
+  // 走行時間 = 距離 ÷ 平均速度
+  const travelMinutes = (distanceKm / AVG_BUS_SPEED_KMH) * 60;
 
-  if (data.status !== 'OK' || !data.routes?.length) return null;
-
-  const route = data.routes[0];
-  let duration = 0;
-  let distance = 0;
-  let trafficDuration = 0;
-
-  for (const leg of route.legs) {
-    duration += leg.duration.value;
-    distance += leg.distance.value;
-    if (leg.duration_in_traffic) {
-      trafficDuration += leg.duration_in_traffic.value;
-    }
-  }
-
-  // 渋滞考慮の所要時間があればそちらを使用
-  const effectiveDuration = trafficDuration > 0 ? trafficDuration : duration;
-
-  // バス停ごとの停車時間を加算
-  let dwellTotal = 0;
+  // 中間バス停の停車時間を合計
+  let dwellSeconds = 0;
   if (waypoints) {
     for (const wp of waypoints) {
-      dwellTotal += wp.dwellTime || 0;
+      dwellSeconds += wp.dwellTime || 0;
     }
   }
-  const totalDuration = effectiveDuration + dwellTotal;
+  const totalMinutes = travelMinutes + dwellSeconds / 60;
 
   return {
-    duration_minutes: Math.round(totalDuration / 60),
-    distance_km: Math.round(distance / 1000 * 10) / 10,
-    source: 'google',
-    traffic_aware: trafficDuration > 0,
-    polyline: route.overview_polyline?.points || null,
-  };
-}
-
-// OSRM で道路ルーティング
-async function routeViaOSRM(busLat, busLng, destLat, destLng, waypoints) {
-  const coords = [`${busLng},${busLat}`];
-
-  if (waypoints && waypoints.length > 2) {
-    let mid = waypoints.slice(1, -1);
-    if (mid.length > 15) {
-      const step = mid.length / 15;
-      mid = Array.from({ length: 15 }, (_, i) => mid[Math.floor(i * step)]);
-    }
-    for (const s of mid) {
-      coords.push(`${s.lng},${s.lat}`);
-    }
-  }
-
-  coords.push(`${destLng},${destLat}`);
-  const url = `https://router.project-osrm.org/route/v1/driving/${coords.join(';')}?overview=false`;
-
-  const res = await fetch(url, {
-    headers: { 'User-Agent': 'KururaTracker/1.0' },
-  });
-  const data = await res.json();
-
-  if (data.code !== 'Ok' || !data.routes?.length) return null;
-
-  let duration = data.routes[0].duration;
-  const distance = data.routes[0].distance;
-
-  // バス停ごとの停車時間を加算
-  if (waypoints) {
-    for (const wp of waypoints) {
-      duration += wp.dwellTime || 0;
-    }
-  }
-
-  return {
-    duration_minutes: Math.round(duration / 60),
-    distance_km: Math.round(distance / 1000 * 10) / 10,
-    source: 'osrm',
+    duration_minutes: Math.max(0, Math.round(totalMinutes)),
+    distance_km: Math.round(distanceKm * 10) / 10,
+    source: 'fixed-route',
     traffic_aware: false,
+    bus_passed: busPassed,
   };
 }
 
-// フォールバック計算
-function fallbackEstimate(busLat, busLng, destLat, destLng, waypoints, numStops) {
+// フォールバック計算（ポリラインデータが無い場合のみ使用）
+function fallbackEstimate(busLat, busLng, destLat, destLng, waypoints) {
   const points = [[busLat, busLng]];
   if (waypoints) {
     for (const s of waypoints) points.push([s.lat, s.lng]);
@@ -123,7 +58,7 @@ function fallbackEstimate(busLat, busLng, destLat, destLng, waypoints, numStops)
   if (waypoints) {
     for (const wp of waypoints) dwellTotal += wp.dwellTime || 0;
   }
-  const minutes = Math.round((roadDist / 25) * 60) + Math.round(dwellTotal / 60);
+  const minutes = Math.round((roadDist / AVG_BUS_SPEED_KMH) * 60) + Math.round(dwellTotal / 60);
 
   return {
     duration_minutes: minutes,
@@ -189,22 +124,13 @@ export const handler = async (event) => {
       waypoints = [];
     }
 
-    let routing;
-    // Google Maps（渋滞対応）→ OSRM → フォールバック
-    try {
-      routing = await routeViaGoogleMaps(bus.lat, bus.lng, targetLat, targetLng, waypoints);
-    } catch (e) {
-      routing = null;
-    }
+    // 固定ルート（実際にバスが通る道）に沿って距離・時間を計算
+    let routing = estimateAlongFixedRoute(
+      bus.lat, bus.lng, targetLat, targetLng, bus.direction, waypoints
+    );
+    // 万が一ポリラインが見つからない場合のみフォールバック
     if (!routing) {
-      try {
-        routing = await routeViaOSRM(bus.lat, bus.lng, targetLat, targetLng, waypoints);
-      } catch (e) {
-        routing = null;
-      }
-    }
-    if (!routing) {
-      routing = fallbackEstimate(bus.lat, bus.lng, targetLat, targetLng, waypoints, numStops);
+      routing = fallbackEstimate(bus.lat, bus.lng, targetLat, targetLng, waypoints);
     }
 
     estimates.push({
@@ -216,7 +142,7 @@ export const handler = async (event) => {
       numStops,
       source: routing.source,
       trafficAware: routing.traffic_aware,
-      polyline: routing.polyline || null,
+      busPassed: routing.bus_passed || false,
       timestamp: bus.timestamp,
     });
   }
