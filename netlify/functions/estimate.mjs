@@ -46,19 +46,12 @@ async function estimateViaGoogleTraffic(bus, destLat, destLng, dwellSecondsTotal
 
   const route = data.routes[0];
   // legごとに duration_in_traffic を優先して合計
-  // (一部のlegにのみ渋滞データがある場合でも整合性を保つ)
+  // (via: 経由点を使うため通常legは1つだが、念のため複数legでも対応)
   let totalDuration = 0;
   let hasAnyTraffic = false;
-  const legsDebug = [];
   for (const leg of route.legs) {
     const dur = leg.duration?.value || 0;
     const traf = leg.duration_in_traffic?.value;
-    legsDebug.push({
-      start: leg.start_address?.split(',')[0],
-      end: leg.end_address?.split(',')[0],
-      dur,
-      traf: traf != null ? traf : null,
-    });
     if (traf != null) {
       totalDuration += traf;
       hasAnyTraffic = true;
@@ -74,8 +67,6 @@ async function estimateViaGoogleTraffic(bus, destLat, destLng, dwellSecondsTotal
     source: 'google-traffic-on-fixed-route',
     traffic_aware: hasAnyTraffic,
     bus_passed: false,
-    legs_debug: legsDebug,  // デバッグ用: レッグごとの所要時間
-    debug_url: url.replace(apiKey, 'KEY_HIDDEN'),  // デバッグ用: 呼び出したURL
   };
 }
 
@@ -204,8 +195,6 @@ export const handler = async (event) => {
       source: routing.source,
       trafficAware: routing.traffic_aware,
       busPassed: routing.bus_passed || false,
-      legsDebug: routing.legs_debug,  // デバッグ用
-      debugUrl: routing.debug_url,    // デバッグ用
       timestamp: bus.timestamp,
     });
   }
