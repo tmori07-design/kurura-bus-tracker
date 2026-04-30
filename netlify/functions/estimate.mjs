@@ -47,12 +47,21 @@ async function estimateViaGoogleTraffic(bus, destLat, destLng, dwellSecondsTotal
   // (一部のlegにのみ渋滞データがある場合でも整合性を保つ)
   let totalDuration = 0;
   let hasAnyTraffic = false;
+  const legsDebug = [];
   for (const leg of route.legs) {
-    if (leg.duration_in_traffic) {
-      totalDuration += leg.duration_in_traffic.value;
+    const dur = leg.duration?.value || 0;
+    const traf = leg.duration_in_traffic?.value;
+    legsDebug.push({
+      start: leg.start_address?.split(',')[0],
+      end: leg.end_address?.split(',')[0],
+      dur,
+      traf: traf != null ? traf : null,
+    });
+    if (traf != null) {
+      totalDuration += traf;
       hasAnyTraffic = true;
     } else {
-      totalDuration += leg.duration.value;
+      totalDuration += dur;
     }
   }
   const totalSeconds = totalDuration + dwellSecondsTotal;
@@ -63,6 +72,7 @@ async function estimateViaGoogleTraffic(bus, destLat, destLng, dwellSecondsTotal
     source: 'google-traffic-on-fixed-route',
     traffic_aware: hasAnyTraffic,
     bus_passed: false,
+    legs_debug: legsDebug,  // デバッグ用: レッグごとの所要時間
   };
 }
 
@@ -191,6 +201,7 @@ export const handler = async (event) => {
       source: routing.source,
       trafficAware: routing.traffic_aware,
       busPassed: routing.bus_passed || false,
+      legsDebug: routing.legs_debug,  // デバッグ用
       timestamp: bus.timestamp,
     });
   }
