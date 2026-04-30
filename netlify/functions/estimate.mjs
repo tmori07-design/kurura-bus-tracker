@@ -43,23 +43,25 @@ async function estimateViaGoogleTraffic(bus, destLat, destLng, dwellSecondsTotal
   if (data.status !== 'OK' || !data.routes?.length) return null;
 
   const route = data.routes[0];
-  let duration = 0;
-  let trafficDuration = 0;
+  // legごとに duration_in_traffic を優先して合計
+  // (一部のlegにのみ渋滞データがある場合でも整合性を保つ)
+  let totalDuration = 0;
+  let hasAnyTraffic = false;
   for (const leg of route.legs) {
-    duration += leg.duration.value;
     if (leg.duration_in_traffic) {
-      trafficDuration += leg.duration_in_traffic.value;
+      totalDuration += leg.duration_in_traffic.value;
+      hasAnyTraffic = true;
+    } else {
+      totalDuration += leg.duration.value;
     }
   }
-  // 渋滞考慮の所要時間があればそちらを優先
-  const effectiveDuration = trafficDuration > 0 ? trafficDuration : duration;
-  const totalSeconds = effectiveDuration + dwellSecondsTotal;
+  const totalSeconds = totalDuration + dwellSecondsTotal;
 
   return {
     duration_minutes: Math.max(0, Math.round(totalSeconds / 60)),
     distance_km: distanceKm != null ? Math.round(distanceKm * 10) / 10 : Math.round(route.legs.reduce((s, l) => s + l.distance.value, 0) / 100) / 10,
     source: 'google-traffic-on-fixed-route',
-    traffic_aware: trafficDuration > 0,
+    traffic_aware: hasAnyTraffic,
     bus_passed: false,
   };
 }
@@ -161,12 +163,9 @@ export const handler = async (event) => {
 
     // 1. Google Directions API + 渋滞考慮 (実際のバスルート強制経由) を最優先
     let routing = null;
-    let googleError = null;
     try {
       routing = await estimateViaGoogleTraffic(bus, targetLat, targetLng, dwellSecondsTotal);
-      if (!routing) googleError = 'returned null';
-    } catch (e) {
-      googleError = e.message || String(e);
+    } catch (_) {
       routing = null;
     }
     // 2. Google失敗時はピンクの線+固定速度
@@ -192,7 +191,6 @@ export const handler = async (event) => {
       source: routing.source,
       trafficAware: routing.traffic_aware,
       busPassed: routing.bus_passed || false,
-      googleError, // デバッグ用: Google API 呼び出し失敗時のエラー
       timestamp: bus.timestamp,
     });
   }
