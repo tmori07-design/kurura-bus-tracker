@@ -32,9 +32,11 @@ async function estimateViaGoogleTraffic(bus, destLat, destLng, dwellSecondsTotal
   const distanceKm = distResult ? distResult.distanceKm : null;
 
   // 3. Google Directions API 呼び出し (渋滞考慮)
+  // 経由点には「via:」プレフィックスを付け「通過点(stopoverでない)」として扱う
+  // これにより duration_in_traffic が返される (stopoverだと返されない仕様)
   let url = `https://maps.googleapis.com/maps/api/directions/json?origin=${bus.lat},${bus.lng}&destination=${destLat},${destLng}&departure_time=now&traffic_model=best_guess&key=${apiKey}`;
   if (wp.waypoints.length > 0) {
-    const wpStr = wp.waypoints.map(p => encodeURIComponent(p.loc)).join('|');
+    const wpStr = wp.waypoints.map(p => 'via:' + encodeURIComponent(p.loc)).join('|');
     url += `&waypoints=${wpStr}`;
   }
 
