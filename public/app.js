@@ -411,6 +411,7 @@ function renderEstimate(data) {
     <div class="estimate-meta">
       <span class="meta-item">🚏 ${stopsInfo}</span>
       <span class="meta-item">📐 道路距離 約${nearest.distanceKm}km</span>
+      ${nearest.trafficAware ? '<span class="meta-item" style="color:#e84393;">🚦 渋滞考慮</span>' : ''}
     </div>
     <div class="estimate-detail">
       更新: ${new Date(nearest.timestamp).toLocaleTimeString('ja-JP')}

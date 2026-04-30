@@ -3,35 +3,74 @@ import {
 } from './shared.mjs';
 import { fetchActiveBuses } from './kurura.mjs';
 import { calculateRouteDistance } from './route-distance.mjs';
+import { getWaypointsForGoogle } from './route-waypoints.mjs';
 
 // メモリ削減: デフォルト1024MB→128MB（Compute GB-Hrs を1/8に削減）
 export const config = { memory: 128 };
 
-// バスの平均移動速度(km/h)
-// NAVITIME時刻表より逆算: かぐらの湯⇄飯田駅前は約45km・約68〜90分 → 30〜40km/h
-// 山道・狭隘区間を含むため保守的に30km/hを採用
+// バスの平均移動速度(km/h) - フォールバック計算用
 const AVG_BUS_SPEED_KMH = 30;
 
-// 固定ルート（実際にバスが通る道）に沿った距離・時間計算
-// バスは渋滞によらず必ず同じ道を通るため、Google Mapsの最適ルートには依存しない
-function estimateAlongFixedRoute(busLat, busLng, destLat, destLng, direction, waypoints) {
-  const result = calculateRouteDistance(busLat, busLng, destLat, destLng, direction);
-  if (!result) return null;
+// Google Directions API で渋滞考慮ルーティング (実際のバスルート上を強制経由)
+//
+// 経由点としてバス停＋信号交差点＋国道152号沿いの点を渡すことで、
+// Googleが「最適ルート」を勝手に選ぶのではなく実際のバス経路に沿った
+// 走行時間（渋滞考慮）を取得する。
+// 距離はピンクの線（事前生成済みポリライン）と一致させるため、
+// Googleの距離ではなくrouteDistanceの結果を使う。
+async function estimateViaGoogleTraffic(bus, destLat, destLng, dwellSecondsTotal) {
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  if (!apiKey) return null;
 
-  const { distanceKm, busPassed } = result;
+  // 1. ピンクのルート上の経由点を取得
+  const wp = getWaypointsForGoogle(bus.direction, bus.lat, bus.lng, destLat, destLng);
+  if (!wp) return null;
+  if (wp.busPassed) return { busPassed: true };
 
-  // 走行時間 = 距離 ÷ 平均速度
-  const travelMinutes = (distanceKm / AVG_BUS_SPEED_KMH) * 60;
+  // 2. ピンクの線に沿った距離(km)を取得
+  const distResult = calculateRouteDistance(bus.lat, bus.lng, destLat, destLng, bus.direction);
+  const distanceKm = distResult ? distResult.distanceKm : null;
 
-  // 中間バス停の停車時間を合計
-  let dwellSeconds = 0;
-  if (waypoints) {
-    for (const wp of waypoints) {
-      dwellSeconds += wp.dwellTime || 0;
+  // 3. Google Directions API 呼び出し (渋滞考慮)
+  let url = `https://maps.googleapis.com/maps/api/directions/json?origin=${bus.lat},${bus.lng}&destination=${destLat},${destLng}&departure_time=now&traffic_model=best_guess&key=${apiKey}`;
+  if (wp.waypoints.length > 0) {
+    const wpStr = wp.waypoints.map(p => encodeURIComponent(p.loc)).join('|');
+    url += `&waypoints=${wpStr}`;
+  }
+
+  const res = await fetch(url);
+  const data = await res.json();
+  if (data.status !== 'OK' || !data.routes?.length) return null;
+
+  const route = data.routes[0];
+  let duration = 0;
+  let trafficDuration = 0;
+  for (const leg of route.legs) {
+    duration += leg.duration.value;
+    if (leg.duration_in_traffic) {
+      trafficDuration += leg.duration_in_traffic.value;
     }
   }
-  const totalMinutes = travelMinutes + dwellSeconds / 60;
+  // 渋滞考慮の所要時間があればそちらを優先
+  const effectiveDuration = trafficDuration > 0 ? trafficDuration : duration;
+  const totalSeconds = effectiveDuration + dwellSecondsTotal;
 
+  return {
+    duration_minutes: Math.max(0, Math.round(totalSeconds / 60)),
+    distance_km: distanceKm != null ? Math.round(distanceKm * 10) / 10 : Math.round(route.legs.reduce((s, l) => s + l.distance.value, 0) / 100) / 10,
+    source: 'google-traffic-on-fixed-route',
+    traffic_aware: trafficDuration > 0,
+    bus_passed: false,
+  };
+}
+
+// 固定ルート(ピンクの線)沿いの距離 + 固定速度 (Google API失敗時のフォールバック)
+function estimateAlongFixedRoute(busLat, busLng, destLat, destLng, direction, dwellSecondsTotal) {
+  const result = calculateRouteDistance(busLat, busLng, destLat, destLng, direction);
+  if (!result) return null;
+  const { distanceKm, busPassed } = result;
+  const travelMinutes = (distanceKm / AVG_BUS_SPEED_KMH) * 60;
+  const totalMinutes = travelMinutes + dwellSecondsTotal / 60;
   return {
     duration_minutes: Math.max(0, Math.round(totalMinutes)),
     distance_km: Math.round(distanceKm * 10) / 10,
@@ -41,30 +80,23 @@ function estimateAlongFixedRoute(busLat, busLng, destLat, destLng, direction, wa
   };
 }
 
-// フォールバック計算（ポリラインデータが無い場合のみ使用）
-function fallbackEstimate(busLat, busLng, destLat, destLng, waypoints) {
+// 最終フォールバック (ポリラインデータも無い場合)
+function fallbackEstimate(busLat, busLng, destLat, destLng, waypoints, dwellSecondsTotal) {
   const points = [[busLat, busLng]];
-  if (waypoints) {
-    for (const s of waypoints) points.push([s.lat, s.lng]);
-  }
+  if (waypoints) for (const s of waypoints) points.push([s.lat, s.lng]);
   points.push([destLat, destLng]);
-
   let dist = 0;
   for (let i = 0; i < points.length - 1; i++) {
     dist += haversineDistance(points[i][0], points[i][1], points[i + 1][0], points[i + 1][1]);
   }
   const roadDist = dist * 1.3;
-  let dwellTotal = 0;
-  if (waypoints) {
-    for (const wp of waypoints) dwellTotal += wp.dwellTime || 0;
-  }
-  const minutes = Math.round((roadDist / AVG_BUS_SPEED_KMH) * 60) + Math.round(dwellTotal / 60);
-
+  const minutes = Math.round((roadDist / AVG_BUS_SPEED_KMH) * 60) + Math.round(dwellSecondsTotal / 60);
   return {
     duration_minutes: minutes,
     distance_km: Math.round(roadDist * 10) / 10,
     source: 'fallback',
     traffic_aware: false,
+    bus_passed: false,
   };
 }
 
@@ -115,6 +147,7 @@ export const handler = async (event) => {
     const busNearest = findNearestStopIndex(bus.lat, bus.lng, stops);
     const numStops = Math.abs(targetStopIdx - busNearest);
 
+    // 中間バス停の停車時間を合計
     let waypoints;
     if (busNearest < targetStopIdx) {
       waypoints = stops.slice(busNearest, targetStopIdx + 1);
@@ -123,14 +156,27 @@ export const handler = async (event) => {
     } else {
       waypoints = [];
     }
+    let dwellSecondsTotal = 0;
+    for (const wp of waypoints) dwellSecondsTotal += wp.dwellTime || 0;
 
-    // 固定ルート（実際にバスが通る道）に沿って距離・時間を計算
-    let routing = estimateAlongFixedRoute(
-      bus.lat, bus.lng, targetLat, targetLng, bus.direction, waypoints
-    );
-    // 万が一ポリラインが見つからない場合のみフォールバック
+    // 1. Google Directions API + 渋滞考慮 (実際のバスルート強制経由) を最優先
+    let routing = null;
+    try {
+      routing = await estimateViaGoogleTraffic(bus, targetLat, targetLng, dwellSecondsTotal);
+    } catch (_) {
+      routing = null;
+    }
+    // 2. Google失敗時はピンクの線+固定速度
     if (!routing) {
-      routing = fallbackEstimate(bus.lat, bus.lng, targetLat, targetLng, waypoints);
+      routing = estimateAlongFixedRoute(
+        bus.lat, bus.lng, targetLat, targetLng, bus.direction, dwellSecondsTotal
+      );
+    }
+    // 3. 最終フォールバック
+    if (!routing) {
+      routing = fallbackEstimate(
+        bus.lat, bus.lng, targetLat, targetLng, waypoints, dwellSecondsTotal
+      );
     }
 
     estimates.push({
