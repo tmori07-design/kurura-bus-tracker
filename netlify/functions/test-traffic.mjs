@@ -43,5 +43,13 @@ export const handler = async () => {
   const wp4 = encodeURIComponent('via:35.51539,137.82812|via:35.50848,137.83848');
   const test4 = await tryUrl('4: via: waypoints (full encode)', base + `&waypoints=${wp4}`, apiKey);
 
-  return jsonResponse({ test1, test2, test3, test4 });
+  // テスト5: 場所名(via:)を含む混在
+  const wp5 = `via:35.51539,137.82812|via:${encodeURIComponent('中央交差点 飯田市')}|via:35.50848,137.83848`;
+  const test5 = await tryUrl('5: lat/lng + place name (via:)', base + `&waypoints=${wp5}`, apiKey);
+
+  // テスト6: 場所名のみ via:
+  const wp6 = `via:${encodeURIComponent('中央交差点 飯田市')}`;
+  const test6 = await tryUrl('6: place name only (via:)', base + `&waypoints=${wp6}`, apiKey);
+
+  return jsonResponse({ test1, test2, test3, test4, test5, test6 });
 };
