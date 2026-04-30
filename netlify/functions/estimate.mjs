@@ -161,9 +161,12 @@ export const handler = async (event) => {
 
     // 1. Google Directions API + 渋滞考慮 (実際のバスルート強制経由) を最優先
     let routing = null;
+    let googleError = null;
     try {
       routing = await estimateViaGoogleTraffic(bus, targetLat, targetLng, dwellSecondsTotal);
-    } catch (_) {
+      if (!routing) googleError = 'returned null';
+    } catch (e) {
+      googleError = e.message || String(e);
       routing = null;
     }
     // 2. Google失敗時はピンクの線+固定速度
@@ -189,6 +192,7 @@ export const handler = async (event) => {
       source: routing.source,
       trafficAware: routing.traffic_aware,
       busPassed: routing.bus_passed || false,
+      googleError, // デバッグ用: Google API 呼び出し失敗時のエラー
       timestamp: bus.timestamp,
     });
   }
