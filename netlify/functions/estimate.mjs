@@ -3,7 +3,7 @@ import {
 } from './shared.mjs';
 import { fetchActiveBuses } from './kurura.mjs';
 import { calculateRouteDistance } from './route-distance.mjs';
-import { getWaypointsForGoogle } from './route-waypoints.mjs';
+import { getWaypointsForGoogle, getJourneyInfo } from './route-waypoints.mjs';
 
 // メモリ削減: デフォルト1024MB→128MB（Compute GB-Hrs を1/8に削減）
 export const config = { memory: 128 };
@@ -86,15 +86,9 @@ function estimateAlongFixedRoute(busLat, busLng, destLat, destLng, direction, dw
   };
 }
 
-// 最終フォールバック (ポリラインデータも無い場合)
-function fallbackEstimate(busLat, busLng, destLat, destLng, waypoints, dwellSecondsTotal) {
-  const points = [[busLat, busLng]];
-  if (waypoints) for (const s of waypoints) points.push([s.lat, s.lng]);
-  points.push([destLat, destLng]);
-  let dist = 0;
-  for (let i = 0; i < points.length - 1; i++) {
-    dist += haversineDistance(points[i][0], points[i][1], points[i + 1][0], points[i + 1][1]);
-  }
+// 最終フォールバック (ポリラインデータも無い場合) - 直線距離 × 1.3係数
+function fallbackEstimate(busLat, busLng, destLat, destLng, dwellSecondsTotal) {
+  const dist = haversineDistance(busLat, busLng, destLat, destLng);
   const roadDist = dist * 1.3;
   const minutes = Math.round((roadDist / AVG_BUS_SPEED_KMH) * 60) + Math.round(dwellSecondsTotal / 60);
   return {
@@ -150,20 +144,12 @@ export const handler = async (event) => {
   // 各バスの到着予測を計算
   const estimates = [];
   for (const bus of buses) {
-    const busNearest = findNearestStopIndex(bus.lat, bus.lng, stops);
-    const numStops = Math.abs(targetStopIdx - busNearest);
-
-    // 中間バス停の停車時間を合計
-    let waypoints;
-    if (busNearest < targetStopIdx) {
-      waypoints = stops.slice(busNearest, targetStopIdx + 1);
-    } else if (busNearest > targetStopIdx) {
-      waypoints = stops.slice(targetStopIdx, busNearest + 1).reverse();
-    } else {
-      waypoints = [];
-    }
-    let dwellSecondsTotal = 0;
-    for (const wp of waypoints) dwellSecondsTotal += wp.dwellTime || 0;
+    // 進行方向順で「バス→目的地」間の中間停留所情報を取得
+    // (BUS_STOPS配列インデックス順では to-iida方向で全停留所を巻き込むバグがあった)
+    const journey = getJourneyInfo(bus.direction, bus.lat, bus.lng, targetLat, targetLng);
+    const dwellSecondsTotal = journey?.dwellSeconds || 0;
+    const numStops = journey?.numStops || 0;
+    const busAlreadyPassed = journey?.busPassed || false;
 
     // 1. Google Directions API + 渋滞考慮 (実際のバスルート強制経由) を最優先
     let routing = null;
@@ -181,9 +167,11 @@ export const handler = async (event) => {
     // 3. 最終フォールバック
     if (!routing) {
       routing = fallbackEstimate(
-        bus.lat, bus.lng, targetLat, targetLng, waypoints, dwellSecondsTotal
+        bus.lat, bus.lng, targetLat, targetLng, dwellSecondsTotal
       );
     }
+    // バスがすでに目的地を通過済みの場合は journey 情報を優先
+    if (busAlreadyPassed) routing.bus_passed = true;
 
     estimates.push({
       route: bus.route,
