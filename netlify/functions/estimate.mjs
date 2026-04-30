@@ -75,6 +75,7 @@ async function estimateViaGoogleTraffic(bus, destLat, destLng, dwellSecondsTotal
     traffic_aware: hasAnyTraffic,
     bus_passed: false,
     legs_debug: legsDebug,  // デバッグ用: レッグごとの所要時間
+    debug_url: url.replace(apiKey, 'KEY_HIDDEN'),  // デバッグ用: 呼び出したURL
   };
 }
 
@@ -204,6 +205,7 @@ export const handler = async (event) => {
       trafficAware: routing.traffic_aware,
       busPassed: routing.bus_passed || false,
       legsDebug: routing.legs_debug,  // デバッグ用
+      debugUrl: routing.debug_url,    // デバッグ用
       timestamp: bus.timestamp,
     });
   }
