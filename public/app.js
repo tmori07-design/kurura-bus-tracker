@@ -24,12 +24,32 @@ const skippedToIida = [
   '大島', '観音前', '日影沢', '畑上', '小道木'
 ];
 
-// バスアイコン
+// バスアイコン (パルス付き = Google Maps ナビ風)
 const busIcon = L.divIcon({
   className: 'bus-marker',
-  html: '<div style="background:#e84393;color:white;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 2px 8px rgba(232,67,147,0.5);border:2px solid white;">🚌</div>',
+  html: `
+    <div class="bus-marker-wrapper">
+      <div class="bus-marker-pulse"></div>
+      <div class="bus-marker-pulse"></div>
+      <div class="bus-marker-core">🚌</div>
+    </div>
+  `,
   iconSize: [36, 36],
   iconAnchor: [18, 18]
+});
+
+// 選択中バス停アイコン (青色パルス)
+const selectedStopIcon = L.divIcon({
+  className: 'selected-stop',
+  html: `
+    <div class="selected-stop-wrapper">
+      <div class="selected-stop-pulse"></div>
+      <div class="selected-stop-pulse"></div>
+      <div class="selected-stop-core"></div>
+    </div>
+  `,
+  iconSize: [30, 30],
+  iconAnchor: [15, 15]
 });
 
 // バス停アイコン
@@ -304,15 +324,12 @@ async function getEstimate() {
   resultDiv.classList.remove('hidden');
   resultDiv.innerHTML = '<p class="loading" style="text-align:center;color:#999;">計算中...</p>';
 
-  // 選択されたバス停をハイライト（初回のみ地図を移動）
+  // 選択されたバス停をハイライト (青色パルスマーカー)
   if (selectedStopMarker) map.removeLayer(selectedStopMarker);
   const stop = stops[parseInt(stopIndex)];
-  selectedStopMarker = L.circleMarker([stop.lat, stop.lng], {
-    radius: 15,
-    color: '#e84393',
-    fillColor: '#e84393',
-    fillOpacity: 0.2,
-    weight: 2
+  selectedStopMarker = L.marker([stop.lat, stop.lng], {
+    icon: selectedStopIcon,
+    zIndexOffset: 500, // 他のマーカーより手前に表示
   }).addTo(map);
   map.setView([stop.lat, stop.lng], 14);
 

@@ -373,6 +373,68 @@ footer .note {
   animation: pulse 1.5s ease-in-out infinite;
 }
 
+/* ===== Google Maps風 パルスマーカー ===== */
+/* バスマーカー(運行中の強調表示) */
+.bus-marker-wrapper {
+  position: relative;
+  width: 36px;
+  height: 36px;
+}
+.bus-marker-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(232, 67, 147, 0.4);
+  animation: pulse-ring 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+}
+.bus-marker-pulse:nth-child(2) {
+  animation-delay: 0.8s;
+}
+.bus-marker-core {
+  position: absolute;
+  inset: 0;
+  background: #e84393;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  box-shadow: 0 2px 8px rgba(232, 67, 147, 0.5);
+  border: 2px solid white;
+}
+@keyframes pulse-ring {
+  0%   { transform: scale(0.7); opacity: 0.9; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+/* 選択中バス停 (青色のパルス) */
+.selected-stop-wrapper {
+  position: relative;
+  width: 30px;
+  height: 30px;
+}
+.selected-stop-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(26, 115, 232, 0.4);
+  animation: pulse-ring 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+}
+.selected-stop-pulse:nth-child(2) {
+  animation-delay: 0.8s;
+}
+.selected-stop-core {
+  position: absolute;
+  inset: 6px;
+  background: #1a73e8;
+  border: 3px solid white;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(26, 115, 232, 0.5);
+}
+
 /* レスポンシブ */
 @media (max-width: 480px) {
   header h1 { font-size: 18px; }
