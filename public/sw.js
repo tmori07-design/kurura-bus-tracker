@@ -4,9 +4,9 @@
 //   - APIリクエスト(/api/*)はネットワーク優先＋失敗時はキャッシュ(直前データを表示)
 //   - 地図タイル(Google)はキャッシュして電波が悪い場所でも見えるように
 
-const APP_CACHE = 'go-tracker-app-v5';
-const RUNTIME_CACHE = 'go-tracker-runtime-v5';
-const TILE_CACHE = 'go-tracker-tiles-v5';
+const APP_CACHE = 'go-tracker-app-v6';
+const RUNTIME_CACHE = 'go-tracker-runtime-v6';
+const TILE_CACHE = 'go-tracker-tiles-v6';
 
 const APP_SHELL = [
   '/',

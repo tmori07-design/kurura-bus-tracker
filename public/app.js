@@ -110,14 +110,11 @@ function updateStopDropdown() {
 
   const iidaOnlyNames = ['知久町１丁目', '知久町３丁目', '飯田病院前'];
 
-  // 第二小学校入口（order=22）より和田側はドロップダウンから除外
-  const MAX_ORDER = 22;
-
   let orderedStops;
   if (currentDirection === 'to-wada') {
     // 飯田→和田（7:00飯田駅前発）: 復路専用と通過停留所を除く
     orderedStops = stops
-      .filter(s => s.order <= MAX_ORDER
+      .filter(s => s.order <= 68
         && !iidaOnlyNames.includes(s.name)
         && !skippedToWada.includes(s.name))
       .sort((a, b) => a.order - b.order);
@@ -125,7 +122,7 @@ function updateStopDropdown() {
     // 和田→飯田（16:24かぐらの湯発）: 往路専用と通過停留所を除く
     const wadaOnlyNames = ['飯田市役所'];
     const commonStops = stops
-      .filter(s => s.order <= MAX_ORDER
+      .filter(s => s.order <= 68
         && !wadaOnlyNames.includes(s.name)
         && !skippedToIida.includes(s.name))
       .sort((a, b) => b.order - a.order);
