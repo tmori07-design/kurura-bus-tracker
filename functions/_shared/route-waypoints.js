@@ -10,6 +10,11 @@ const WAYPOINTS_TO_WADA = [
   // 飯田市内
   { name: "飯田駅前", loc: "35.51904,137.82081", lat: 35.51904, lng: 137.82081, isStop: true, dwellTime: 0 },
   { name: "飯田市役所", loc: "35.51516,137.82223", lat: 35.51516, lng: 137.82223, isStop: true, dwellTime: 0 },
+  // 飯田市役所→中央広場 の経路: 市役所前信号(直進)→動物園前信号(直進)→銀座5丁目信号(左折)→中央交差点(右折)
+  { name: "市役所前信号", loc: "35.5148153,137.8227425", lat: 35.5148153, lng: 137.8227425, isStop: false },
+  { name: "動物園前信号", loc: "35.5141093,137.8242291", lat: 35.5141093, lng: 137.8242291, isStop: false },
+  { name: "銀座5丁目信号", loc: "35.5135468,137.8258301", lat: 35.5135468, lng: 137.8258301, isStop: false },
+  { name: "中央交差点信号", loc: "35.5157088,137.827378", lat: 35.5157088, lng: 137.827378, isStop: false },
   { name: "中央広場", loc: "35.51539,137.82812", lat: 35.51539, lng: 137.82812, isStop: true, dwellTime: 0 },
   { name: "東中央通り", loc: "35.51231,137.83434", lat: 35.51231, lng: 137.83434, isStop: true, dwellTime: 0 },
   { name: "飯田橋", loc: "35.50848,137.83848", lat: 35.50848, lng: 137.83848, isStop: true, dwellTime: 0 },
