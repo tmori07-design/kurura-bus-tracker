@@ -144,6 +144,9 @@ function findClosestIdx(lat, lng, sequence) {
 //   busPassed: boolean                 // バスが目的地を通過済みか
 // } | null
 //
+// 通過判定のマージン(km): GPSの誤差吸収用
+const PASS_MARGIN_KM = 0.08; // 80m (直線距離・haversine ベース)
+
 // 23点を超える場合は信号交差点を優先的に残しつつバス停をサンプリング
 export function getWaypointsForGoogle(direction, busLat, busLng, destLat, destLng) {
   const sequence = WAYPOINTS[direction];
@@ -152,8 +155,14 @@ export function getWaypointsForGoogle(direction, busLat, busLng, destLat, destLn
   const busIdx = findClosestIdx(busLat, busLng, sequence);
   const destIdx = findClosestIdx(destLat, destLng, sequence);
 
-  if (destIdx <= busIdx) {
+  // バスとバス停の直線距離(haversine)で、80m以内なら「到着間近」として通過扱いしない
+  const directDistKm = haversineDistance(busLat, busLng, destLat, destLng);
+  if (destIdx <= busIdx && directDistKm > PASS_MARGIN_KM) {
     return { waypoints: [], busPassed: true };
+  }
+  if (destIdx <= busIdx) {
+    // バスは経由点順では先だが、まだ近いので「通過していない」扱いにする
+    return { waypoints: [], busPassed: false };
   }
 
   // バスとデスティネーションの間の経由点（両端は除外）
@@ -204,8 +213,13 @@ export function getJourneyInfo(direction, busLat, busLng, destLat, destLng) {
   const busIdx = findClosestIdx(busLat, busLng, sequence);
   const destIdx = findClosestIdx(destLat, destLng, sequence);
 
-  if (destIdx <= busIdx) {
+  // バスとバス停の直線距離が80m以内なら「到着間近」扱い、通過扱いしない
+  const directDistKm = haversineDistance(busLat, busLng, destLat, destLng);
+  if (destIdx <= busIdx && directDistKm > PASS_MARGIN_KM) {
     return { dwellSeconds: 0, numStops: 0, busPassed: true };
+  }
+  if (destIdx <= busIdx) {
+    return { dwellSeconds: 0, numStops: 0, busPassed: false };
   }
 
   // バスとデスティネーションの間の経由点 (両端は除外)

@@ -89,11 +89,16 @@ function distanceAlongPolyline(coords, startIdx, endIdx) {
   return total;
 }
 
+// 通過判定のマージン(km)
+//   GPSの誤差(±10〜30m)を吸収するため、ルート線上で50m以上明確に
+//   先にいる場合のみ「通過済み」と判定する
+const PASS_MARGIN_KM = 0.05;
+
 // バス位置から目的地までの「実際のバスルート」上の距離を計算
 //
 // 返り値: { distanceKm, busPassed } または null
 //   distanceKm: ポリライン上の累積距離(km)
-//   busPassed:  true なら バスはすでに目的地を通過済み
+//   busPassed:  true なら バスはすでに目的地を通過済み（50m以上先にいる場合のみ）
 //
 // 注意: ポリラインは進行方向順に並んでいる
 //   to-wada: 飯田駅前(0) → かぐらの湯(N)
@@ -105,9 +110,12 @@ export function calculateRouteDistance(busLat, busLng, destLat, destLng, directi
   const busIdx = findClosestPointIndex(busLat, busLng, coords);
   const destIdx = findClosestPointIndex(destLat, destLng, coords);
 
-  // 進行方向と逆向き(destIdx < busIdx)なら、バスは目的地を通過済み
-  const busPassed = destIdx < busIdx;
   const distanceKm = distanceAlongPolyline(coords, busIdx, destIdx);
+
+  // 進行方向上、バスがバス停より「先」にいて、かつマージン以上離れている時のみ通過扱い
+  //   GPSの誤差で1〜30m先に飛ぶことがあるため、50m未満は「到着間近」として扱う
+  const isPastDest = destIdx < busIdx;
+  const busPassed = isPastDest && distanceKm > PASS_MARGIN_KM;
 
   return { distanceKm, busPassed };
 }

@@ -105,9 +105,12 @@ export function calculateRouteDistance(busLat, busLng, destLat, destLng, directi
   const busIdx = findClosestPointIndex(busLat, busLng, coords);
   const destIdx = findClosestPointIndex(destLat, destLng, coords);
 
-  // 進行方向と逆向き(destIdx < busIdx)なら、バスは目的地を通過済み
-  const busPassed = destIdx < busIdx;
   const distanceKm = distanceAlongPolyline(coords, busIdx, destIdx);
+
+  // GPSの誤差(±10〜30m)を吸収するため、ルート線上で50m以上離れている時のみ通過扱い
+  const PASS_MARGIN_KM = 0.05;
+  const isPastDest = destIdx < busIdx;
+  const busPassed = isPastDest && distanceKm > PASS_MARGIN_KM;
 
   return { distanceKm, busPassed };
 }
